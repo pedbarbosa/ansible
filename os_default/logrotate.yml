@@ -1,0 +1,27 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+  - name: Check if logrotate is installed
+    pacman:
+      name: logrotate
+      state: installed
+  - name: Configure logrotate
+    copy:
+      src: files/logrotate.conf
+      dest: /etc/logrotate.conf
+      owner: root
+      group: root
+      mode: 0644
+  - name: Configure logrotate - ntp
+    copy:
+      src: files/logrotate-ntp.conf
+      dest: /etc/logrotate.d/ntp
+      owner: root
+      group: root
+      mode: 0644
+  - name: Reload logrotate
+    service:
+      name: logrotate.timer
+      state: reloaded

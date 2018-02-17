@@ -22,4 +22,4 @@
   - name: Reload ntpd
     service:
       name: ntpd
-      state: restarted
+      state: reloaded
