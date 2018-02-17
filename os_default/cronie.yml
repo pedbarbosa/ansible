@@ -1,0 +1,13 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+  - name: Check if cronie is installed
+    pacman:
+      name: cronie
+      state: installed
+  - name: Ensure cronie is running
+    service:
+      name: ntpd
+      state: started

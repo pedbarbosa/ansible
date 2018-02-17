@@ -1,4 +1,6 @@
 ---
 - import_playbook: os_default/arch.yml
+- import_playbook: os_default/cronie.yml
+- import_playbook: os_default/ntp.yml
 - import_playbook: os_default/ssh.yml
 - import_playbook: os_default/vim.yml
