@@ -7,3 +7,4 @@
 - import_playbook: os_default/ntp.yml
 - import_playbook: os_default/syslog-ng.yml
 - import_playbook: os_default/vim.yml
+- import_playbook: os_default/zsh.yml
