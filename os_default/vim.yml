@@ -1,0 +1,16 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+  - name: Check if vim is installed
+    pacman:
+      name: vim
+      state: installed
+  - name: Configure vimrc
+    copy:
+      src: files/vimrc
+      dest: /etc/vimrc
+      owner: root
+      group: root
+      mode: 0644
