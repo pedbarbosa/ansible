@@ -1,0 +1,25 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+  - name: Check if ntp is installed
+    pacman:
+      name: ntp
+      state: installed
+  - name: Configure ntpd
+    copy:
+      src: files/ntp.conf
+      dest: /etc/ntp.conf
+      owner: root
+      group: root
+      mode: 0644
+  - name: Configure timezone
+    file:
+      src: /usr/share/zoneinfo/Australia/Brisbane
+      dest: /etc/localtime
+      state: link
+  - name: Reload ntpd
+    service:
+      name: ntpd
+      state: restarted
