@@ -1,0 +1,18 @@
+#	$OpenBSD: sshd_config,v 1.93 2014/01/10 05:59:19 djm Exp $
+
+# Default protocol
+Protocol 2
+
+# Authentication
+PermitRootLogin no
+AuthorizedKeysFile	.ssh/authorized_keys
+ChallengeResponseAuthentication no
+UsePAM yes
+
+X11Forwarding yes
+X11UseLocalhost no
+PrintMotd no # pam does that
+UsePrivilegeSeparation sandbox		# Default for new installations.
+
+# override default of no subsystems
+Subsystem	sftp	/usr/lib/ssh/sftp-server

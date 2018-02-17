@@ -1,0 +1,20 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+  - name: Check if ssh is installed
+    pacman:
+      name: openssh
+      state: installed
+  - name: Configure sshd
+    copy:
+      src: sshd_config
+      dest: /etc/ssh/sshd_config
+      owner: root
+      group: root
+      mode: 0644
+  - name: Reload sshd
+    service:
+      name: sshd
+      state: restarted

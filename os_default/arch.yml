@@ -1,0 +1,12 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+  # - name: Update Pacman repositories
+  #   pacman:
+  #     update_cache: no
+  - name: Check if base packages are installed
+    pacman:
+      name: autofs, bash-completion, bind-tools, cifs-utils, curl, dhcpcd, ethtool, git, iftop, iotop, lsof, mlocate, ncdu, net-tools, rsync, ruby, samba, sysstat, wget
+      state: installed
