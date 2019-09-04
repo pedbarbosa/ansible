@@ -1,3 +1,5 @@
+" File managed by Ansible - https://github.com/pedbarbosa/ansible
+
 set nocompatible              " be iMproved, required
 filetype off                  " required
 set backspace=indent,eol,start  " more powerful backspacing
