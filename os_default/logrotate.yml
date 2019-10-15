@@ -14,6 +14,7 @@
       owner: root
       group: root
       mode: 0644
+    notify: Restart logrotate
   - name: Configure logrotate - ntp
     copy:
       src: files/logrotate-ntp.conf
@@ -21,7 +22,9 @@
       owner: root
       group: root
       mode: 0644
-  - name: Reload logrotate
+    notify: Restart logrotate
+  handlers:
+  - name: Restart logrotate
     service:
       name: logrotate.timer
       state: restarted
