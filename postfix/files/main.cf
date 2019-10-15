@@ -1,6 +1,6 @@
 # Basic configuration
 
-mydomain                        = {{ postfix_mail_domain }}
+mydomain                        = {{ domain }}
 myhostname                      = mail.$mydomain
 myorigin                        = $mydomain
 smtpd_banner                    = $myhostname ESMTP - No UBE/UCE
