@@ -1,3 +1,5 @@
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+
 # Adjusting zsh typeset
 typeset -F SECONDS
 typeset -U path

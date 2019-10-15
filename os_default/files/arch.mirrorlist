@@ -1,4 +1,4 @@
-# File managed by Ansible
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
 
 Server = https://mirror.aarnet.edu.au/pub/archlinux/$repo/os/$arch
 Server = http://archlinux.mirror.digitalpacific.com.au/$repo/os/$arch
