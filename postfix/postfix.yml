@@ -1,0 +1,31 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+  - name: Check if postfix is installed
+    pacman:
+      name: postfix
+      state: installed
+  - name: Read secrets from file
+    include_vars:
+      file: ../secrets.yml
+  - name: Configure postfix main.cf
+    template:
+      src: files/main.cf
+      dest: /etc/postfix/main.cf
+    notify: Reload postfix
+  - name: Configure postfix virtual
+    template:
+      src: files/virtual
+      dest: /etc/postfix/virtual
+    notify: Remap virtual
+  handlers:
+  - name: Reload postfix 
+    service:
+      name: postfix
+      state: reloaded
+  - name: Remap virtual
+    command: postmap /etc/postfix/virtual
+    notify: Reload postfix
+

@@ -4,3 +4,6 @@
 
 # Ansible retries
 *.retry
+
+# Secrets file
+secrets.yml
