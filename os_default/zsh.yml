@@ -7,22 +7,30 @@
     pacman:
       name: zsh
       state: installed
-  - name: Configure zshrc
+  - name: Configure zshrc for root
     copy:
       src: files/zshrc
       dest: ~/.zshrc
-      owner: root
-      group: root
       mode: 0600
-  - name: Clone oh-my-zsh git repository
+  - name: Configure oh-my-zsh for root
     git:
       repo: 'https://github.com/robbyrussell/oh-my-zsh.git'
-      version: master
-      dest: ~/.oh-my-zsh
-  - name: Clone fzf git repository
+      dest: /root/.oh-my-zsh
+  - name: Configure fzf for root
     git:
       repo: 'https://github.com/junegunn/fzf.git'
-      version: master
-      dest: ~/.fzf
-
-# TODO: Add .oh-my-zsh, .fzf and .rbenv (on a gem playbook)
+      dest: /root/.fzf
+- hosts: all
+  tasks:
+    - name: Configure zshrc for user
+      copy:
+        src: files/zshrc
+        dest: ~/.zshrc
+    - name: Configure oh-my-zsh for user
+      git:
+        repo: 'https://github.com/robbyrussell/oh-my-zsh.git'
+        dest: ~/.oh-my-zsh
+    - name: Configure fzf for user
+      git:
+        repo: 'https://github.com/junegunn/fzf.git'
+        dest: ~/.fzf

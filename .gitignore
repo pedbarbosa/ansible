@@ -1,5 +1,9 @@
+# IntelliJ
+.idea/
+*.iml
+
 # Ansible retries
 *.retry
 
-# IntelliJ
-.idea/
+# Secrets file
+secrets.yml

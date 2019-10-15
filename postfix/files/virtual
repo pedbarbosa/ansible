@@ -1,0 +1,2 @@
+@{{ postfix_mail_domain }}    {{ main_user_account }}
+
