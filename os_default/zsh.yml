@@ -11,8 +11,6 @@
     copy:
       src: files/zshrc
       dest: ~/.zshrc
-      owner: root
-      group: root
       mode: 0600
   - name: Clone oh-my-zsh git repository
     git:
@@ -21,7 +19,20 @@
   - name: Clone fzf git repository
     git:
       repo: 'https://github.com/junegunn/fzf.git'
-      version: 6c0fd7f9ca663f2057a114f1aa86bfe5f6a78c68
       dest: /root/.fzf
-
-# TODO: Add .oh-my-zsh, .fzf and .rbenv (on a gem playbook)
+- hosts: all
+  become: yes
+  become_user: pbarbosa
+  tasks:
+    - name: Configure zshrc
+      copy:
+        src: files/zshrc
+        dest: ~pbarbosa/.zshrc
+    - name: Clone oh-my-zsh git repository
+      git:
+        repo: 'https://github.com/robbyrussell/oh-my-zsh.git'
+        dest: ~pbarbosa/.oh-my-zsh
+    - name: Clone fzf git repository
+      git:
+        repo: 'https://github.com/junegunn/fzf.git'
+        dest: ~pbarbosa/.fzf
