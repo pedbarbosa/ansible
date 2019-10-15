@@ -9,4 +9,5 @@
 - import_playbook: os_default/vim.yml
 - import_playbook: os_default/zsh.yml
 
+- import_playbook: collectd/collectd.yml
 - import_playbook: postfix/postfix.yml
