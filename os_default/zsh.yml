@@ -7,32 +7,30 @@
     pacman:
       name: zsh
       state: installed
-  - name: Configure zshrc
+  - name: Configure zshrc for root
     copy:
       src: files/zshrc
       dest: ~/.zshrc
       mode: 0600
-  - name: Clone oh-my-zsh git repository
+  - name: Configure oh-my-zsh for root
     git:
       repo: 'https://github.com/robbyrussell/oh-my-zsh.git'
       dest: /root/.oh-my-zsh
-  - name: Clone fzf git repository
+  - name: Configure fzf for root
     git:
       repo: 'https://github.com/junegunn/fzf.git'
       dest: /root/.fzf
 - hosts: all
-  become: yes
-  become_user: pbarbosa
   tasks:
-    - name: Configure zshrc
+    - name: Configure zshrc for user
       copy:
         src: files/zshrc
-        dest: ~pbarbosa/.zshrc
-    - name: Clone oh-my-zsh git repository
+        dest: ~/.zshrc
+    - name: Configure oh-my-zsh for user
       git:
         repo: 'https://github.com/robbyrussell/oh-my-zsh.git'
-        dest: ~pbarbosa/.oh-my-zsh
-    - name: Clone fzf git repository
+        dest: ~/.oh-my-zsh
+    - name: Configure fzf for user
       git:
         repo: 'https://github.com/junegunn/fzf.git'
-        dest: ~pbarbosa/.fzf
+        dest: ~/.fzf
