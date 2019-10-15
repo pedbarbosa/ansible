@@ -14,7 +14,9 @@
       owner: root
       group: root
       mode: 0644
-  - name: Reload sshd
+    notify: Restart sshd
+  handlers:
+  - name: Restart sshd
     service:
       name: sshd
       state: restarted
