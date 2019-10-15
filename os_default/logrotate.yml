@@ -24,4 +24,4 @@
   - name: Reload logrotate
     service:
       name: logrotate.timer
-      state: reloaded
+      state: restarted
