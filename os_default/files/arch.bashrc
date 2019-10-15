@@ -1,4 +1,4 @@
-# File managed by Ansible
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
 
 # If not running interactively, don't do anything!
 [[ $- != *i* ]] && return

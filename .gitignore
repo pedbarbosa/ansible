@@ -1,2 +1,5 @@
 # Ansible retries
 *.retry
+
+# IntelliJ
+.idea/

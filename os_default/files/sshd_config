@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.93 2014/01/10 05:59:19 djm Exp $
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
 
 # Default protocol
 Protocol 2
