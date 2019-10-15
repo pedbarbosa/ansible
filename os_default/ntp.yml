@@ -14,12 +14,15 @@
       owner: root
       group: root
       mode: 0644
+    notify: Restart ntpd
   - name: Configure timezone
     file:
       src: /usr/share/zoneinfo/Australia/Brisbane
       dest: /etc/localtime
       state: link
-  - name: Reload ntpd
+    notify: Restart ntpd
+  handlers:
+  - name: Restart ntpd
     service:
       name: ntpd
       state: restarted
