@@ -1,13 +1,15 @@
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+
 # Basic configuration
 
 mydomain                        = {{ domain }}
 myhostname                      = mail.$mydomain
 myorigin                        = $mydomain
 smtpd_banner                    = $myhostname ESMTP - No UBE/UCE
-mynetworks                      = 127.0.0.0/8 192.168.2.0/24
+mynetworks                      = 127.0.0.0/8 192.168.1.0/24 192.168.2.0/24
 mydestination                   = $myhostname localhost.$mydomain $mydomain
 recipient_delimiter             = +
-relayhost                       =
+relayhost                       = {{ isp_smtp_server }}
 
 # Access restriction
 
