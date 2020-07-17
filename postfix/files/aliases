@@ -1,0 +1,32 @@
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+
+# NOTE: The program "newaliases" must be run after this file is updated!
+
+# Person who should get root's mail. Don't receive mail as root!
+root:		{{ main_user_email }}
+
+# Basic system aliases -- these MUST be present
+MAILER-DAEMON:	postmaster
+postmaster:	root
+
+# General redirections for pseudo accounts
+bin:		root
+daemon:		root
+named:		root
+nobody:		root
+uucp:		root
+www:		root
+ftp-bugs:	root
+postfix:	root
+
+# Put your local aliases here.
+{{ main_user_account}}:	{{ main_user_email }}
+
+# Well-known aliases
+manager:	root
+dumper:		root
+operator:	root
+abuse:		postmaster
+
+# trap decode to catch security attacks
+decode:		root

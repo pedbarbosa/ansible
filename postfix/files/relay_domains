@@ -1,4 +1,3 @@
 # File managed by Ansible - https://github.com/pedbarbosa/ansible
 
-@{{ domain }}    {{ main_user_account }}
-
+{{ domain }}

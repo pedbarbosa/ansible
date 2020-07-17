@@ -10,16 +10,34 @@
   - name: Read secrets from file
     include_vars:
       file: ../secrets.yml
+  - name: Configure system aliases
+    template:
+      src: files/aliases
+      dest: /etc/aliases
+    notify: Run newaliases
   - name: Configure postfix main.cf
     template:
       src: files/main.cf
       dest: /etc/postfix/main.cf
     notify: Reload postfix
+  - name: Configure postfix relay_domains
+    template:
+      src: files/relay_domains
+      dest: /etc/postfix/relay_domains
+    notify: Remap virtual
   - name: Configure postfix virtual
     template:
       src: files/virtual
       dest: /etc/postfix/virtual
     notify: Remap virtual
+  - name: Check if postfix is enabled
+    service:
+      name: postfix
+      enabled: yes
+  - name: Check if postfix is running
+    service:
+      name: postfix
+      state: started
   handlers:
   - name: Reload postfix 
     service:
@@ -27,5 +45,8 @@
       state: reloaded
   - name: Remap virtual
     command: postmap /etc/postfix/virtual
+    notify: Reload postfix
+  - name: Run newaliases
+    command: newaliases
     notify: Reload postfix
 
