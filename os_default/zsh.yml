@@ -16,10 +16,12 @@
     git:
       repo: 'https://github.com/robbyrussell/oh-my-zsh.git'
       dest: /root/.oh-my-zsh
+      update: no
   - name: Configure fzf for root
     git:
       repo: 'https://github.com/junegunn/fzf.git'
       dest: /root/.fzf
+      update: no
 - hosts: all
   tasks:
     - name: Configure zshrc for user
@@ -30,7 +32,9 @@
       git:
         repo: 'https://github.com/robbyrussell/oh-my-zsh.git'
         dest: ~/.oh-my-zsh
+        update: no
     - name: Configure fzf for user
       git:
         repo: 'https://github.com/junegunn/fzf.git'
         dest: ~/.fzf
+        update: no
