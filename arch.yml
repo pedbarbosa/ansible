@@ -1,6 +1,6 @@
 ---
 - import_playbook: os_default/arch.yml
-- import_playbook: os_default/ssh.yml
+- import_playbook: os_default/arch.ssh.yml
 
 - import_playbook: os_default/cronie.yml
 - import_playbook: os_default/logrotate.yml
