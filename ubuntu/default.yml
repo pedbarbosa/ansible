@@ -1,0 +1,29 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+  - name: Check if base packages are installed
+    apt:
+      name: bash-completion, curl, ethtool, git, iftop, iotop, lsof, meld, mlocate, ncdu, net-tools, openssh-server, rsync, ruby, samba, sysstat, wget
+      state: present
+  - name: Update bashrc
+    copy:
+      src: files/bash.bashrc
+      dest: /etc/bash.bashrc
+      owner: root
+      group: root
+      mode: 0644
+  - name: Configure sshd
+    copy:
+      src: files/sshd_config
+      dest: /etc/ssh/sshd_config
+      owner: root
+      group: root
+      mode: 0644
+    notify: Restart sshd
+  handlers:
+  - name: Restart sshd
+    service:
+      name: sshd
+      state: restarted

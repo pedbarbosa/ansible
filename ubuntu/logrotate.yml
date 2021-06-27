@@ -1,0 +1,22 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+  - name: Check if logrotate is installed
+    apt:
+      name: logrotate
+      state: present
+  - name: Configure logrotate
+    copy:
+      src: files/logrotate.conf
+      dest: /etc/logrotate.conf
+      owner: root
+      group: root
+      mode: 0644
+    notify: Restart logrotate
+  handlers:
+  - name: Restart logrotate
+    service:
+      name: logrotate.timer
+      state: restarted

@@ -1,0 +1,40 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+  - name: Check if zsh is installed
+    apt:
+      name: zsh
+      state: present
+  - name: Configure zshrc for root
+    copy:
+      src: files/zshrc
+      dest: ~/.zshrc
+      mode: 0600
+  - name: Configure oh-my-zsh for root
+    git:
+      repo: 'https://github.com/robbyrussell/oh-my-zsh.git'
+      dest: /root/.oh-my-zsh
+      update: yes
+  - name: Configure fzf for root
+    git:
+      repo: 'https://github.com/junegunn/fzf.git'
+      dest: /root/.fzf
+      update: yes
+- hosts: all
+  tasks:
+    - name: Configure zshrc for user
+      copy:
+        src: files/zshrc
+        dest: ~/.zshrc
+    - name: Configure oh-my-zsh for user
+      git:
+        repo: 'https://github.com/robbyrussell/oh-my-zsh.git'
+        dest: ~/.oh-my-zsh
+        update: yes
+    - name: Configure fzf for user
+      git:
+        repo: 'https://github.com/junegunn/fzf.git'
+        dest: ~/.fzf
+        update: yes

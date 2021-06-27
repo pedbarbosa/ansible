@@ -1,0 +1,34 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+  - name: Check if rsyslog is installed
+    apt:
+      name: rsyslog
+      state: absent
+  - name: Check if syslog-ng is installed
+    apt:
+      name: syslog-ng
+      state: present
+  - name: Configure syslog-ng
+    copy:
+      src: files/syslog-ng.conf
+      dest: /etc/syslog-ng/syslog-ng.conf
+      owner: root
+      group: root
+      mode: 0644
+    notify: Reload syslog-ng
+  - name: Configure syslog-ng - logrotate
+    copy:
+      src: files/logrotate-syslog-ng.conf
+      dest: /etc/logrotate.d/syslog-ng-remote
+      owner: root
+      group: root
+      mode: 0644
+    notify: Reload syslog-ng
+  handlers:
+  - name: Reload syslog-ng
+    service:
+      name: syslog-ng
+      state: reloaded
