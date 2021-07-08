@@ -15,8 +15,17 @@
       group: root
       mode: 0644
     notify: Restart logrotate
+  - name: Configure logrotate for postfix
+    copy:
+      src: files/logrotate-postfix.conf
+      dest: /etc/logrotate.d/postfix-remote
+      owner: root
+      group: root
+      mode: 0644
+    notify: Restart logrotate
   handlers:
   - name: Restart logrotate
     service:
       name: logrotate.timer
       state: restarted
+
