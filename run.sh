@@ -29,4 +29,4 @@ else
   playbook=arch
 fi
 
-echo ansible-playbook -CD "$playbook".yml
+ansible-playbook -CD "$playbook".yml
