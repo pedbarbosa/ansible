@@ -13,19 +13,20 @@ if ! command -v ansible &> /dev/null; then
     fi
 fi
 
-# Check if host is defined as a host
+# Check if localhost is defined as a host
+if [ ! -f "/etc/ansible/hosts" ]; then
+  echo touch /etc/ansible/hosts
+fi
+
 if ! grep '127.0.0.1' /etc/ansible/hosts &> /dev/null; then
     echo "Updating Ansible hosts file ..."
     echo '127.0.0.1' | sudo tee -a /etc/ansible/hosts
 fi
 
+if is_debian; then
+  playbook=ubuntu
+else
+  playbook=arch
+fi
 
-# if [ ! -e "/etc/ansible/hosts" ]; then
-#    echo "No hosts found in '/etc/ansible/hosts', exiting..."
-#    exit 1
-# fi
-
-# TODO: Scan environment and configure accordingly
-
-# TODO: For now, do Arch setups only
-# ansible-playbook -v arch.yml
+echo ansible-playbook -CD "$playbook".yml
