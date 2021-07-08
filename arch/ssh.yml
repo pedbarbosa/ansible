@@ -9,7 +9,7 @@
       state: installed
   - name: Configure sshd
     copy:
-      src: files/arch.sshd_config
+      src: files/sshd_config
       dest: /etc/ssh/sshd_config
       owner: root
       group: root
