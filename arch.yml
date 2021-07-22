@@ -1,13 +1,13 @@
 ---
-- import_playbook: os_default/arch.yml
-- import_playbook: os_default/ssh.yml
+- import_playbook: arch/default.yml
+- import_playbook: arch/ssh.yml
 
-- import_playbook: os_default/cronie.yml
-- import_playbook: os_default/logrotate.yml
-- import_playbook: os_default/ntp.yml
-- import_playbook: os_default/syslog-ng.yml
-- import_playbook: os_default/vim.yml
-- import_playbook: os_default/zsh.yml
+- import_playbook: arch/cronie.yml
+- import_playbook: arch/logrotate.yml
+- import_playbook: arch/ntp.yml
+- import_playbook: arch/syslog-ng.yml
+- import_playbook: arch/vim.yml
+- import_playbook: arch/zsh.yml
 
 - import_playbook: collectd/collectd.yml
 - import_playbook: postfix/postfix.yml

@@ -8,7 +8,7 @@
   #     update_cache: yes
   - name: Update Arch mirrorlist
     copy:
-      src: files/arch.mirrorlist
+      src: files/mirrorlist
       dest: /etc/pacman.d/mirrorlist
       owner: root
       group: root
@@ -19,7 +19,7 @@
       state: installed
   - name: Update bashrc
     copy:
-      src: files/arch.bashrc
+      src: files/bash.bashrc
       dest: /etc/bash.bashrc
       owner: root
       group: root

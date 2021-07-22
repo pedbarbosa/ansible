@@ -1,0 +1,16 @@
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+
+Include /etc/ssh/sshd_config.d/*.conf
+
+ChallengeResponseAuthentication no
+UsePAM yes
+
+X11Forwarding yes
+PrintMotd no
+
+# Allow client to pass locale environment variables
+AcceptEnv LANG LC_*
+
+# override default of no subsystems
+Subsystem      sftp    /usr/lib/openssh/sftp-server
+

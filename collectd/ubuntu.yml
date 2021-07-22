@@ -1,0 +1,38 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+  - name: Check if collectd is installed
+    apt:
+      name: collectd
+      state: present
+  - name: Read secrets from file
+    include_vars:
+      file: ../secrets.yml
+  - name: Configure collectd
+    template:
+      src: files/ubuntu.collectd.conf
+      dest: /etc/collectd/collectd.conf
+    notify: Restart collectd
+  - name: Configure collectd ping module
+    template:
+      src: files/collectd.d/ping.conf
+      dest: /etc/collectd/collectd.conf.d
+    notify: Restart collectd
+  - name: Configure collectd other modules
+    copy: src={{ item.0 }} dest=/etc/collectd/collectd.conf.d
+    with_together:
+      - 'collectd.d/df.conf'
+      - 'collectd.d/disk.conf'
+      - 'collectd.d/interface.conf'
+      - 'collectd.d/logfile.conf'
+      - 'collectd.d/rrdtool.conf'
+      - 'collectd.d/unixsock.conf'
+    notify: Restart collectd
+  handlers:
+  - name: Restart collectd 
+    service:
+      name: collectd
+      state: restarted
+
