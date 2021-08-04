@@ -28,6 +28,7 @@
       - 'collectd.d/interface.conf'
       - 'collectd.d/logfile.conf'
       - 'collectd.d/rrdtool.conf'
+      - 'collectd.d/sensors.conf'
       - 'collectd.d/unixsock.conf'
     notify: Restart collectd
   handlers:

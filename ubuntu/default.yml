@@ -22,8 +22,19 @@
       group: root
       mode: 0644
     notify: Restart sshd
+  - name: Configure sysctl.conf
+    copy:
+      src: files/sysctl.conf
+      dest: /etc/sysctl.conf
+      owner: root
+      group: root
+      mode: 0644
+    notify: Reload sysctl
   handlers:
   - name: Restart sshd
     service:
       name: sshd
       state: restarted
+  - name: Reload sysctl
+    become: yes
+    command: sysctl -p
