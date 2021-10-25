@@ -19,7 +19,7 @@ ZSH_THEME="powerlevel10k/powerlevel10k"
 DISABLE_AUTO_UPDATE="true"
 COMPLETION_WAITING_DOTS="true"
 HIST_STAMPS="yyyy-mm-dd"
-plugins=(command-not-found cp docker gem git gitfast pip rsync ruby sudo)
+plugins=(command-not-found cp docker gem git gitfast golang pip rsync ruby sudo)
 source ${ZSH}/oh-my-zsh.sh
 zsh_timer_02_ohmyzsh=$SECONDS
 
