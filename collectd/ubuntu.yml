@@ -15,21 +15,45 @@
       src: files/ubuntu.collectd.conf
       dest: /etc/collectd/collectd.conf
     notify: Restart collectd
+  - name: Configure collectd df module
+    template:
+      src: files/collectd.d/df.conf
+      dest: /etc/collectd/collectd.conf.d
+    notify: Restart collectd
+  - name: Configure collectd disk module
+    template:
+      src: files/collectd.d/disk.conf
+      dest: /etc/collectd/collectd.conf.d
+    notify: Restart collectd
+  - name: Configure collectd interface module
+    template:
+      src: files/collectd.d/interface.conf
+      dest: /etc/collectd/collectd.conf.d
+    notify: Restart collectd
+  - name: Configure collectd logfile module
+    template:
+      src: files/collectd.d/logfile.conf
+      dest: /etc/collectd/collectd.conf.d
+    notify: Restart collectd
   - name: Configure collectd ping module
     template:
       src: files/collectd.d/ping.conf
       dest: /etc/collectd/collectd.conf.d
     notify: Restart collectd
-  - name: Configure collectd other modules
-    copy: src={{ item.0 }} dest=/etc/collectd/collectd.conf.d
-    with_together:
-      - 'collectd.d/df.conf'
-      - 'collectd.d/disk.conf'
-      - 'collectd.d/interface.conf'
-      - 'collectd.d/logfile.conf'
-      - 'collectd.d/rrdtool.conf'
-      - 'collectd.d/sensors.conf'
-      - 'collectd.d/unixsock.conf'
+  - name: Configure collectd rrdtool module
+    template:
+      src: files/collectd.d/rrdtool.conf
+      dest: /etc/collectd/collectd.conf.d
+    notify: Restart collectd
+  - name: Configure collectd sensors module
+    template:
+      src: files/collectd.d/sensors.conf
+      dest: /etc/collectd/collectd.conf.d
+    notify: Restart collectd
+  - name: Configure collectd unixsock module
+    template:
+      src: files/collectd.d/unixsock.conf
+      dest: /etc/collectd/collectd.conf.d
     notify: Restart collectd
   handlers:
   - name: Restart collectd 

@@ -1,7 +1,9 @@
 ---
 - import_playbook: ubuntu/default.yml
 
+- import_playbook: ubuntu/hddtemp.yml
 - import_playbook: ubuntu/logrotate.yml
+- import_playbook: ubuntu/python.yml
 - import_playbook: ubuntu/syslog-ng.yml
 - import_playbook: ubuntu/vim.yml
 - import_playbook: ubuntu/zsh.yml
