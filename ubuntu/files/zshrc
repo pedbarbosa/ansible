@@ -43,7 +43,6 @@ zsh_timer_05_rbenv=$SECONDS
 if [[ -d "$HOME/.pyenv" ]]; then
     PATH="$HOME/.pyenv/bin:$PATH"
     eval "$(pyenv init -)"
-    eval "$(pyenv virtualenv-init -)"
 fi
 zsh_timer_06_pyenv=$SECONDS
 
