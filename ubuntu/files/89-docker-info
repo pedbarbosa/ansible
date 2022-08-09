@@ -1,0 +1,15 @@
+#!/bin/sh
+dRunning=$(docker ps -q | wc -l)
+dExited=$(docker ps -aq --filter status=exited | wc -l)
+
+if [ "$dExited" -eq 0 ]; then
+    dMessage="$dRunning running"
+else
+    dMessage="$dRunning running and $dExited exited"
+fi
+
+dDangling=$(docker images -q -f dangling=true | wc -l)
+if [ "$dDangling" -eq 1 ]; then dImages="image"; else dImages="images"; fi
+
+echo
+echo "Docker: $dMessage containers. $dDangling dangling $dImages."

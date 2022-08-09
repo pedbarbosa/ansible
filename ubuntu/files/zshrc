@@ -60,7 +60,13 @@ zsh_timer_08_aliases=$SECONDS
 autoload -U +X bashcompinit && bashcompinit
 zsh_timer_09_autocomplete=$SECONDS
 
+# Tilix VTE configuration
+if [ $TILIX_ID ] || [ $VTE_VERSION ]; then
+        source /etc/profile.d/vte.sh
+fi
+zsh_timer_10_tilix=$SECONDS
+
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-zsh_timer_10_finish=$SECONDS
+zsh_timer_11_finish=$SECONDS
 

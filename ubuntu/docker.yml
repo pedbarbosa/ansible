@@ -1,0 +1,17 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+  - name: Check if docker package is installed
+    apt:
+      name: docker.io, docker-compose
+      state: present
+  - name: Update MOTD
+    copy:
+      src: files/89-docker-info
+      dest: /etc/update-motd.d/89-docker-info
+      owner: root
+      group: root
+      mode: 0755
+
