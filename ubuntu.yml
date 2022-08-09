@@ -1,6 +1,8 @@
 ---
+# Core Ubuntu packages and configuration
 - import_playbook: ubuntu/default.yml
 
+# Services and configuration for Ubuntu
 - import_playbook: ubuntu/docker.yml
 - import_playbook: ubuntu/hddtemp.yml
 - import_playbook: ubuntu/logrotate.yml
@@ -9,4 +11,6 @@
 - import_playbook: ubuntu/vim.yml
 - import_playbook: ubuntu/zsh.yml
 
+# Agnostic configuration
 - import_playbook: collectd/ubuntu.yml
+
