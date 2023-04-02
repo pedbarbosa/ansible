@@ -3,11 +3,11 @@
   become: yes
   become_user: root
   tasks:
-  - name: Check if vim is installed
+  - name: vim - Check if installed
     apt:
       name: vim
       state: present
-  - name: Configure vimrc
+  - name: vim - Configure vimrc
     copy:
       src: files/vimrc
       dest: /etc/vim/vimrc

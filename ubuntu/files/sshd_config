@@ -6,7 +6,15 @@ ChallengeResponseAuthentication no
 UsePAM yes
 
 X11Forwarding yes
-PrintMotd no
+PrintMotd yes
+
+# Hardening
+PermitRootLogin no
+ClientAliveCountMax 2
+Compression no
+LogLevel VERBOSE
+MaxAuthTries 3
+MaxSessions 2
 
 # Allow client to pass locale environment variables
 AcceptEnv LANG LC_*

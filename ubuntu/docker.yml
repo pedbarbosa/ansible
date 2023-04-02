@@ -3,15 +3,23 @@
   become: yes
   become_user: root
   tasks:
-  - name: Check if docker package is installed
-    apt:
-      name: docker.io, docker-compose
-      state: present
-  - name: Update MOTD
-    copy:
-      src: files/89-docker-info
-      dest: /etc/update-motd.d/89-docker-info
-      owner: root
-      group: root
-      mode: 0755
+    - name: docker - Add GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: docker - Add Repository
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu jammy stable
+        state: present
+
+    - name: docker - install packages
+      apt:
+        name: docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin
+        state: latest
+        update_cache: true
+
+    - name: Install Docker Module for Python
+      pip:
+        name: docker
 

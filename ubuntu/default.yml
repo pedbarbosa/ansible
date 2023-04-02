@@ -3,18 +3,26 @@
   become: yes
   become_user: root
   tasks:
-  - name: Check if base packages are installed
+  - name: ubuntu - Set apt base sources
+    copy:
+      src: files/sources.list_jammy
+      dest: /etc/apt/sources.list
+      owner: root
+      group: root
+      mode: 0664
+  - name: ubuntu - Check if base packages are installed
     apt:
-      name: bash-completion, curl, ethtool, git, iftop, iotop, lsof, meld, mlocate, ncdu, net-tools, openssh-server, rsync, ruby, samba, sysstat, wget
+      name: bash-completion, curl, ethtool, git, iftop, iotop, lsof, meld, mlocate, ncdu, net-tools, openssh-server, rsync, ruby, samba, wget
       state: present
-  - name: Update bashrc
+      update_cache: true
+  - name: bash - Update bashrc
     copy:
       src: files/bash.bashrc
       dest: /etc/bash.bashrc
       owner: root
       group: root
       mode: 0644
-  - name: Configure sshd
+  - name: sshd - Configure service
     copy:
       src: files/sshd_config
       dest: /etc/ssh/sshd_config

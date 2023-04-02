@@ -4,9 +4,9 @@
 
 # Services and configuration for Ubuntu
 - import_playbook: ubuntu/docker.yml
-- import_playbook: ubuntu/hddtemp.yml
 - import_playbook: ubuntu/logrotate.yml
 - import_playbook: ubuntu/python.yml
+- import_playbook: ubuntu/security.yml
 - import_playbook: ubuntu/syslog-ng.yml
 - import_playbook: ubuntu/vim.yml
 - import_playbook: ubuntu/zsh.yml

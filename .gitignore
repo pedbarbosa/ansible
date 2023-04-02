@@ -7,3 +7,6 @@
 
 # Secrets file
 secrets.yml
+
+# Testing
+test/
