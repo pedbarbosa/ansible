@@ -3,11 +3,11 @@
   become: yes
   become_user: root
   tasks:
-  - name: Check if logrotate is installed
+  - name: logrotate - Check if installed
     apt:
       name: logrotate
       state: present
-  - name: Configure logrotate
+  - name: logrotate - Configure service
     copy:
       src: files/logrotate.conf
       dest: /etc/logrotate.conf
@@ -15,16 +15,16 @@
       group: root
       mode: 0644
     notify: Restart logrotate
-  - name: Configure logrotate for postfix
+  - name: logrotate - Configure logrotate for postfix
     copy:
       src: files/logrotate-postfix.conf
       dest: /etc/logrotate.d/postfix-remote
       owner: root
       group: root
       mode: 0644
-    notify: Restart logrotate
+    notify: logrotate - Restart
   handlers:
-  - name: Restart logrotate
+  - name: logrotate - Restart
     service:
       name: logrotate.timer
       state: restarted

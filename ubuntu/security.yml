@@ -1,0 +1,86 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+  - name: lynis - Check if cisofy key is set up
+    stat:
+      path: /etc/apt/trusted.gpg.d/cisofy-key.asc
+    register: cisofy_key_exists
+    changed_when: not cisofy_key_exists.stat.exists
+    notify: get_cisofy_key
+  - name: Flush handlers
+    meta: flush_handlers
+  - name: lynis - Set cisofy repo
+    copy:
+      src: files/cisofy-lynis.list
+      dest: /etc/apt/sources.list.d/cisofy-lynis.list
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: security - Check if required packages are installed
+    apt:
+      name: acct, apt-listchanges, apt-show-versions, auditd, debsums, fail2ban, libpam-tmpdir, lynis, needrestart, rkhunter, sysstat
+      state: present
+  - name: sysstat - Configure service
+    copy:
+      src: files/sysstat
+      dest: /etc/default/sysstat
+      owner: root
+      group: root
+      mode: 0644
+  - name: sysstat - Enable and start monitoring
+    systemd:
+      name: sysstat
+      state: started
+  - name: security - Set SSH local banner
+    copy:
+      src: files/issue
+      dest: /etc/issue
+      owner: root
+      group: root
+      mode: 0644
+  - name: security - Set SSH network banner
+    copy:
+      src: files/issue
+      dest: /etc/issue.net
+      owner: root
+      group: root
+      mode: 0644
+  - name: security - Set limits.conf
+    copy:
+      src: files/limits.conf
+      dest: /etc/security/limits.conf
+      owner: root
+      group: root
+      mode: 0644
+  - name: rkhunter - Configure service
+    copy:
+      src: files/rkhunter.conf
+      dest: /etc/rkhunter.conf
+      owner: root
+      group: root
+      mode: 0644
+  - name: rkhunter - Set cron
+    copy:
+      src: files/rkhunter.cron
+      dest: /etc/default/rkhunter
+      owner: root
+      group: root
+      mode: 0644
+  - name: security - Disable modules for unused protocols
+    copy:
+      src: files/security-hardening.conf
+      dest: /etc/modprobe.d/security-hardening.conf
+      owner: root
+      group: root
+      mode: 0644
+
+  handlers:
+    - name: get_cisofy_key
+      ansible.builtin.get_url:
+        url: https://packages.cisofy.com/keys/cisofy-software-public.key
+        dest: /etc/apt/trusted.gpg.d/cisofy-key.asc
+        mode: 0644
+

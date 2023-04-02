@@ -3,15 +3,15 @@
   become: yes
   become_user: root
   tasks:
-  - name: Check if rsyslog is installed
+  - name: syslog-ng - Ensure rsyslog is absent
     apt:
       name: rsyslog
       state: absent
-  - name: Check if syslog-ng is installed
+  - name: syslog-ng - Check if installed
     apt:
       name: syslog-ng
       state: present
-  - name: Configure syslog-ng
+  - name: syslog-ng - Configure service
     copy:
       src: files/syslog-ng.conf
       dest: /etc/syslog-ng/syslog-ng.conf
@@ -19,7 +19,7 @@
       group: root
       mode: 0644
     notify: Reload syslog-ng
-  - name: Configure syslog-ng - logrotate
+  - name: syslog-ng - Configure logrotate for service
     copy:
       src: files/logrotate-syslog-ng.conf
       dest: /etc/logrotate.d/syslog-ng-remote
@@ -28,7 +28,7 @@
       mode: 0644
     notify: Reload syslog-ng
   handlers:
-  - name: Reload syslog-ng
+  - name: syslog-ng - Reload service
     service:
       name: syslog-ng
       state: reloaded
