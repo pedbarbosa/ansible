@@ -19,7 +19,7 @@ ZSH_THEME="powerlevel10k/powerlevel10k"
 DISABLE_AUTO_UPDATE="true"
 COMPLETION_WAITING_DOTS="true"
 HIST_STAMPS="yyyy-mm-dd"
-plugins=(command-not-found cp docker gem git gitfast golang pip rsync ruby sudo)
+plugins=(command-not-found cp docker docker-compose git gitfast pip rsync sudo)
 source ${ZSH}/oh-my-zsh.sh
 zsh_timer_02_ohmyzsh=$SECONDS
 
@@ -43,6 +43,7 @@ zsh_timer_05_rbenv=$SECONDS
 if [[ -d "$HOME/.pyenv" ]]; then
     PATH="$HOME/.pyenv/bin:$PATH"
     eval "$(pyenv init -)"
+    eval "$(pyenv virtualenv-init -)"
 fi
 zsh_timer_06_pyenv=$SECONDS
 
