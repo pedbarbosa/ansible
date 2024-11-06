@@ -1,0 +1,27 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+  - name: samba - Check if installed
+    apt:
+      name: samba
+      state: present
+  - name: Read secrets from file
+    include_vars:
+      file: ../secrets.yml
+  - name: samba - Configure smb.conf
+    template:
+      src: files/smb.conf
+      dest: /etc/samba/smb.conf
+      owner: root
+      group: root
+      mode: 0644
+    notify: samba - Restart
+
+  handlers:
+  - name: samba - Restart
+    service:
+      name: smbd.service
+      state: restarted
+

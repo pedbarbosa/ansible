@@ -12,7 +12,7 @@
       mode: 0664
   - name: ubuntu - Check if base packages are installed
     apt:
-      name: bash-completion, curl, ethtool, git, iftop, iotop, lsof, meld, mlocate, ncdu, net-tools, openssh-server, rsync, ruby, samba, wget
+      name: bash-completion, curl, ethtool, git, iftop, iotop, lsof, meld, mlocate, ncdu, net-tools, openssh-server, rsync, ruby, wget
       state: present
       update_cache: true
   - name: bash - Update bashrc
