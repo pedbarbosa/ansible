@@ -1,0 +1,14 @@
+---
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Check if base packages are installed
+      package:
+        name: [aria2, awscli, bash, curl, dos2unix, gh, git, grep, jq, ncdu, nmap, openssh, telnet, wget]
+        state: present
+    - name: Configure .gitconfig
+      copy:
+        src: files/gitconfig
+        dest: "{{ home_dir }}/.gitconfig"
+        mode: 0640
+
