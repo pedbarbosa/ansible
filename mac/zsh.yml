@@ -1,0 +1,34 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    zshrc_mdm_file: "{{ home_dir }}/.zshrc_mdm"
+  tasks:
+  - name: Check if zsh is installed
+    package:
+      name: [zsh, zsh-completions]
+      state: present
+  - name: Configure .zprofile
+    copy:
+      src: files/zprofile
+      dest: "{{ home_dir }}/.zprofile"
+      mode: 0640
+  - name: Configure .zshrc
+    template:
+      src: files/zshrc.j2
+      dest: "{{ home_dir }}/.zshrc"
+      mode: 0640
+  - name: Clone oh-my-zsh git repository
+    git:
+      repo: 'https://github.com/robbyrussell/oh-my-zsh.git'
+      dest: "{{ home_dir }}/.oh-my-zsh"
+  - name: Clone powerlevel10k git repository
+    git:
+      repo: 'https://github.com/romkatv/powerlevel10k.git'
+      dest: "{{ home_dir }}/.oh-my-zsh/custom/themes/powerlevel10k"
+      depth: 1
+  - name: Clone fzf git repository
+    git:
+      repo: 'https://github.com/junegunn/fzf.git'
+      dest: "{{ home_dir }}/.fzf"
+

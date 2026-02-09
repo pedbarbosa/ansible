@@ -1,0 +1,10 @@
+---
+# Core mac packages and configuration
+- import_playbook: mac/default.yml
+
+# Services and configuration for mac
+- import_playbook: mac/python.yml
+- import_playbook: mac/ruby.yml
+- import_playbook: mac/vim.yml
+- import_playbook: mac/zsh.yml
+

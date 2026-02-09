@@ -1,0 +1,9 @@
+---
+- hosts: localhost
+  connection: local
+  tasks:
+  - name: Check if python is installed
+    package:
+      name: [ipython, pyenv]
+      state: present
+

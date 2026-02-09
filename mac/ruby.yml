@@ -1,0 +1,9 @@
+---
+- hosts: localhost
+  connection: local
+  tasks:
+  - name: Check if ruby is installed
+    package:
+      name: [rbenv, ruby, ruby-build]
+      state: present
+

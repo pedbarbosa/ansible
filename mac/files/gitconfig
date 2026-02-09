@@ -1,0 +1,11 @@
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+
+[push]
+	default = simple
+[user]
+	name = Pedro Barbosa
+	email = pedbarbosa@users.noreply.github.com
+[core]
+	editor = /usr/local/bin/vim
+[pull]
+	rebase = true
