@@ -1,2 +1,5 @@
-[[ -r ~/.zshrc ]] && source ~/.zshrc
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+
+# Only run in login shells
+export PATH="$HOME/bin:/usr/local/bin:$PATH"
 

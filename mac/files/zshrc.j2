@@ -4,14 +4,14 @@
 typeset -F SECONDS
 typeset -U path
 
-zsh_timer_counter=0
+zsh_timer_counter=1
 zsh_timer() {
   export zsh_timer_$(printf "%02d" zsh_timer_counter)_$1=$SECONDS
   ((zsh_timer_counter++))
 }
 zsh_timer start
 
-eval "$(/opt/homebrew/bin/brew shellenv)"
+eval "$({{ homebrew_prefix }}/bin/brew shellenv)"
 zsh_timer shellenv
 
 # Initialization code that may require console input (password prompts, [y/n]
@@ -36,28 +36,12 @@ DISABLE_AUTO_UPDATE="true"
 COMPLETION_WAITING_DOTS="true"
 HIST_STAMPS="yyyy-mm-dd"
 plugins=(
-  aws
-  brew
-  bundler
-  command-not-found
-  cp
-  docker
-  gem
-  git
-  gitfast
-  jsontools
-  macos
-  pip
-  pyenv
-  rbenv
-  rsync
-  ruby
-  sudo
-  terraform
-  z
+{% for plugin in zsh_plugins %}
+  {{ plugin }}
+{% endfor %}
 )
 source ${ZSH}/oh-my-zsh.sh
-export HISTSIZE=1000000
+export HISTSIZE=20000
 export SAVEHIST=100000
 zsh_timer ohmyzsh
 
@@ -89,8 +73,8 @@ if [[ -d "$HOME/.rbenv" ]]; then
 fi
 
 # Use legacy MySQL client
-if [[ -f "/opt/homebrew/opt/mysql-client@8.4/bin/mysql" ]]; then
-    export PATH="/opt/homebrew/opt/mysql-client@8.4/bin:$PATH"
+if [[ -f "{{ homebrew_prefix }}/opt/mysql-client@8.4/bin/mysql" ]]; then
+    export PATH="{{ homebrew_prefix }}/opt/mysql-client@8.4/bin:$PATH"
     zsh_timer mysql_legacy
 fi
 
@@ -132,11 +116,7 @@ zsh_timer p10k
 # Disable AWS pager tool
 export AWS_PAGER=''
 
-# === CORPORATE CERTIFICATES (managed externally) ===
-{% if lookup('file', zshrc_mdm_file, errors='ignore') %}
-{{ lookup('file', zshrc_mdm_file) }}
-{% endif %}
-# === END CORPORATE CERTIFICATES ===
+{{ zshrc_mdm_content | trim }}
 
 zsh_timer end
 unset zsh_timer_counter

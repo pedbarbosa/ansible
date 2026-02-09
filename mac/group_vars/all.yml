@@ -1,2 +1,37 @@
 home_dir: "{{ ansible_facts['env']['HOME'] }}"
 
+homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['architecture'] == 'aarch64' else '/usr/local' }}"
+
+is_corporate: "{{ (ansible_facts['hostname'].split('.')[0] | length) != 3 }}"
+
+zsh_plugins_base:
+  - aws
+  - brew
+  - command-not-found
+  - cp
+  - docker
+  - git
+  - gitfast
+  - jsontools
+  - macos
+  - pip
+  - rsync
+  - sudo
+  - z
+
+zsh_plugins_corporate:
+  - terraform
+
+zsh_plugins: "{{ zsh_plugins_base + (zsh_plugins_corporate if is_corporate else []) }}"
+
+zshrc_mdm_file: "{{ home_dir }}/.zshrc.mdm"
+
+zshrc_mdm_content: >-
+  {% set mdm_file = zshrc_mdm_file %}
+  {% if lookup('file', mdm_file, errors='ignore') %}
+  {{ lookup('file', mdm_file) }}
+  zsh_timer corporate_certs
+  {% else %}
+  {{ '' }}
+  {% endif %}
+
