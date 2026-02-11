@@ -103,12 +103,6 @@ zsh_timer caffeinate
 export PATH="/usr/local/sbin:$PATH:$HOME/bin:$HOME/.local/bin"
 zsh_timer path
 
-# ZSH aliases
-if [[ -f ~/.zshrc_aliases ]]; then
-    source ~/.zshrc_aliases
-    zsh_timer aliases
-fi
-
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 zsh_timer p10k
