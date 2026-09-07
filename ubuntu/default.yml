@@ -3,14 +3,6 @@
   become: yes
   become_user: root
   tasks:
-  # - name: ubuntu - Set apt base sources
-  #   copy:
-  #     src: files/sources.list_jammy
-  #     dest: /etc/apt/sources.list
-  #     owner: root
-  #     group: root
-  #     mode: 0664
-
   - name: ubuntu - Upgrade all outdated packages
     apt:
       upgrade: dist
