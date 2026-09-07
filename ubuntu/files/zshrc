@@ -15,8 +15,8 @@ zsh_timer start
 # confirmations, etc.) must go above this block, everything else may go below.
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+  zsh_timer p10k_instant_prompt
 fi
-zsh_timer p10k_instant_prompt
 
 # Set up pyenv before OMZ
 if [[ -d "$HOME/.pyenv" ]]; then
@@ -27,33 +27,35 @@ if [[ -d "$HOME/.pyenv" ]]; then
 fi
 
 # Load and configure oh-my-zsh
-export ZSH=$HOME/.oh-my-zsh
-ZSH_THEME="powerlevel10k/powerlevel10k"
-DISABLE_AUTO_UPDATE="true"
-COMPLETION_WAITING_DOTS="true"
-HIST_STAMPS="yyyy-mm-dd"
-plugins=(command-not-found cp docker docker-compose git gitfast pip rsync sudo)
-source ${ZSH}/oh-my-zsh.sh
-zsh_timer ohmyzsh
+if [[ -d "$HOME/.oh-my-zsh" ]]; then
+  export ZSH="$HOME/.oh-my-zsh"
+  ZSH_THEME="powerlevel10k/powerlevel10k"
+  DISABLE_AUTO_UPDATE="true"
+  COMPLETION_WAITING_DOTS="true"
+  HIST_STAMPS="yyyy-mm-dd"
+  plugins=(command-not-found cp docker docker-compose git gitfast pip rsync sudo)
+  source ${ZSH}/oh-my-zsh.sh
+  zsh_timer ohmyzsh
+fi
 
 # Initialise zsh completion and add 'zsh-completions' if available
 if [[ -x /usr/local/share/zsh-completions ]]; then
-    fpath=(/usr/local/share/zsh-completions ${fpath})
+  fpath=(/usr/local/share/zsh-completions ${fpath})
+  compinit
+  zsh_timer compinit
 fi
-compinit
-zsh_timer compinit
 
 # Turn on fuzzy matching
 if [[ -f "$HOME/.fzf.zsh" ]]; then
-    source "$HOME/.fzf.zsh"
-    zsh_timer fzf
+  source "$HOME/.fzf.zsh"
+  zsh_timer fzf
 fi
 
 # Set up rbenv
 if [[ -d "$HOME/.rbenv" ]]; then
-    export PATH="$HOME/.rbenv/bin:$PATH"
-    eval "$(rbenv init -)"
-    zsh_timer rbenv
+  export PATH="$HOME/.rbenv/bin:$PATH"
+  eval "$(rbenv init -)"
+  zsh_timer rbenv
 fi
 
 # Path and extra aliases
@@ -62,12 +64,6 @@ zsh_timer path
 
 autoload -U +X bashcompinit && bashcompinit
 zsh_timer autocomplete
-
-# Tilix VTE configuration
-if [ $TILIX_ID ] || [ $VTE_VERSION ]; then
-        source /etc/profile.d/vte.sh
-fi
-zsh_timer tilix
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
