@@ -1,75 +1,117 @@
 " File managed by Ansible - https://github.com/pedbarbosa/ansible
 
-" All system-wide defaults are set in $VIMRUNTIME/debian.vim and sourced by
-" the call to :runtime you can find below.  If you wish to change any of those
-" settings, you should do it in this file (/etc/vim/vimrc), since debian.vim
-" will be overwritten everytime an upgrade of the vim packages is performed.
-" It is recommended to make changes after sourcing debian.vim since it alters
-" the value of the 'compatible' option.
+" Plugins
+filetype off " required
+call plug#begin('~/.vim/plugged')
+Plug 'nanotech/jellybeans.vim'
+Plug 'davidhalter/jedi-vim', { 'for': 'python'}
+Plug 'scrooloose/syntastic'
+Plug 'majutsushi/tagbar'
+Plug 'bling/vim-airline'
+Plug 'chrisbra/csv.vim', { 'for': 'csv' }
+Plug 'mhinz/vim-signify'
+Plug 'tpope/vim-fugitive'
+Plug 'scrooloose/nerdtree', { 'on':  'NERDTreeToggle' }
+Plug 'tpope/vim-unimpaired'
+Plug 'ekalinin/Dockerfile.vim'
+Plug 'airblade/vim-rooter'
+Plug 'kien/ctrlp.vim'
+Plug 'rodjek/vim-puppet'
+Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
+call plug#end()
 
-runtime! debian.vim
+" Whitespace
+set tabstop=4     " number of visual spaces per tab
+set softtabstop=4 " number of spaces in tab when editing
+set shiftwidth=4  " number of spaces to move with <</>>
+set expandtab     " tabs are spaces
+set smarttab      " make <tab> insert indents correctly based on vim settings
+set list lcs=tab:\|\
 
-" Vim will load $VIMRUNTIME/defaults.vim if the user does not have a vimrc.
-" This happens after /etc/vim/vimrc(.local) are loaded, so it will override
-" any settings in these files.
-" If you don't want that to happen, uncomment the below line to prevent
-" defaults.vim from being loaded.
-" let g:skip_defaults_vim = 1
-
-" Vim will load $VIMRUNTIME/defaults.vim if the user does not have a vimrc.
-" This happens after /etc/vim/vimrc(.local) are loaded, so it will override
-" any settings in these files.
-" If you don't want that to happen, uncomment the below line to prevent
-" defaults.vim from being loaded.
-" let g:skip_defaults_vim = 1
-
-" Uncomment the next line to make Vim more Vi-compatible
-" NOTE: debian.vim sets 'nocompatible'.  Setting 'compatible' changes numerous
-" options, so any other options should be set AFTER setting 'compatible'.
-"set compatible
-
-" Vim5 and later versions support syntax highlighting. Uncommenting the next
-" line enables syntax highlighting by default.
-if has("syntax")
-  syntax on
-endif
-
-" If using a dark background within the editing area and syntax highlighting
-" turn on this option as well
+" Colours
 set background=dark
+colorscheme jellybeans
 
-" Uncomment the following to have Vim jump to the last position when
-" reopening a file
+" UI
+set nocompatible   " Use Vim defaults instead of 100% vi compatibility
+set history=50     " keep 50 lines of command line history
+set number         " show line numbers
+"set relativenumber " enable relative line numbers
+set cursorline     " highlight current line
+set showmatch      " Show matching brackets.
+"set ruler          " show the cursor position all the time
+"set modelines=1    " allow per-file vim configs
+set lazyredraw     " redraw when needed. speeds up macros
+set backspace=indent,eol,start     " more powerful backspacing
+filetype plugin indent on
+
+" Suffixes that get lower priority when doing tab completion for filenames.
+" These are files we are not likely to want to edit or read.
+set suffixes=.bak,~,.swp,.o,.info,.aux,.log,.dvi,.bbl,.blg,.brf,.cb,.ind,.idx,.ilg,.inx,.out,.toc
+
+" Jump to last position in file
 if has("autocmd")
   au BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g'\"" | endif
 endif
 
-" Uncomment the following to have Vim load indentation rules and plugins
-" according to the detected filetype.
-filetype plugin indent on
+" Syntax
+syntax on
+" Recognize exact file names as file types
+au BufRead,BufNewFile {Gemfile,Vagrantfile,Berksfile} set ft=ruby
+au BufRead,BufNewFile *.sls set ft=yaml
+let g:syntastic_enable_perl_checker = 1
+let g:syntastic_c_check_header = 1
+let g:syntastic_cpp_check_header = 1
+let g:syntastic_python_checkers=['flake8']
+let g:syntastic_ruby_checkers=['jruby']
+let g:syntastic_yaml_checkers=['yamlxs']
+let g:syntastic_json_checkers=['jsonlint']
+let g:syntastic_zsh_checkers=['zsh']
+let g:syntastic_sh_checkers=['shellcheck']
+let g:syntastic_javascript_checkers=['jshint']
+let g:syntastic_puppet_checkers=['puppet']
+let g:syntastic_python_flake8_args = "--max-line-length=500"
 
-" The following are commented out as they cause vim to behave a lot
-" differently from regular Vi. They are highly recommended though.
-"set showcmd            " Show (partial) command in status line.
-set showmatch           " Show matching brackets.
-set hlsearch            " Highlight searches. <C-L> to temprorarily turn off
-set ignorecase         " Do case insensitive matching
-set smartcase          " Do smart case matching
-"set incsearch          " Incremental search
-"set autowrite          " Automatically save before commands like :next and :make
-"set hidden             " Hide buffers when they are abandoned
-"set mouse=a            " Enable mouse usage (all modes)
+" Searching
+set incsearch  " search as characters are entered
+set hlsearch   " highlight searches
+set ignorecase " Do case insensitive matching
+set smartcase  " Do smart case matching
 
-" Source a global configuration file if available
-if filereadable("/etc/vim/vimrc.local")
-  source /etc/vim/vimrc.local
-endif
+" Folding
+set foldenable        " enable folding
+set foldlevelstart=10 " open most folds by default
+set foldnestmax=10    " 10 nexted folds max
+nnoremap <space> za
+set foldmethod=indent " default to indent folding
 
-" Whitespace settings
-set tabstop=4
-set softtabstop=4
-set shiftwidth=4
-" set textwidth=80
-set smarttab
-set expandtab
+" Keyboard bindings
+nmap <Esc>b <S-Left>
+nmap <Esc>f <S-Right>
+nmap <C-a> <Home>
+nmap <C-e> <End>
 
+" Per-plugin configs
+" NERDTree
+nmap <F8> :NERDTreeToggle<CR>
+nmap <s-F8> :NERDTreeFind<CR>
+
+" Airline
+let g:airline#extensions#branch#enabled = 1
+let g:airline_powerline_fonts = 1
+set laststatus=2
+
+" Tagbar
+let g:tagbar_autoclose = 1
+let g:tagbar_type_puppet = {
+    \ 'ctagstype': 'puppet',
+    \ 'kinds': [
+        \'c:class',
+        \'s:site',
+        \'n:node',
+        \'d:definition'
+      \]
+    \}
+
+" Tab control keys
+nmap <F9> :TagbarToggle<CR>

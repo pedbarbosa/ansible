@@ -31,12 +31,16 @@ compinit
 zsh_timer_03_compinit=$SECONDS
 
 # Turn on fuzzy matching
-source ~/.fzf.zsh
+if [[ -f "$HOME/.fzf.zsh" ]]; then
+    source "$HOME/.fzf.zsh"
+fi
 zsh_timer_04_fzf=$SECONDS
 
 # Set up rbenv
+if [[ -d "$HOME/.rbenv" ]]; then
 export PATH="$HOME/.rbenv/bin:$PATH"
 eval "$(rbenv init -)"
+fi
 zsh_timer_05_rbenv=$SECONDS
 
 # Set up pyenv
@@ -70,4 +74,3 @@ zsh_timer_10_tilix=$SECONDS
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 zsh_timer_11_finish=$SECONDS
-
