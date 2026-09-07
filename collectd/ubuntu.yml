@@ -17,42 +17,57 @@
     notify: Restart collectd
   - name: Configure collectd df module
     template:
-      src: files/collectd.d/df.conf
+      src: files/collectd.conf.d/df.conf
       dest: /etc/collectd/collectd.conf.d
     notify: Restart collectd
   - name: Configure collectd disk module
     template:
-      src: files/collectd.d/disk.conf
+      src: files/collectd.conf.d/disk.conf
       dest: /etc/collectd/collectd.conf.d
     notify: Restart collectd
   - name: Configure collectd interface module
     template:
-      src: files/collectd.d/interface.conf
+      src: files/collectd.conf.d/interface.conf
       dest: /etc/collectd/collectd.conf.d
     notify: Restart collectd
   - name: Configure collectd logfile module
     template:
-      src: files/collectd.d/logfile.conf
+      src: files/collectd.conf.d/logfile.conf
       dest: /etc/collectd/collectd.conf.d
     notify: Restart collectd
   - name: Configure collectd ping module
     template:
-      src: files/collectd.d/ping.conf
+      src: files/collectd.conf.d/ping.conf
+      dest: /etc/collectd/collectd.conf.d
+    notify: Restart collectd
+  - name: Configure collectd processes module
+    template:
+      src: files/collectd.conf.d/processes.conf
       dest: /etc/collectd/collectd.conf.d
     notify: Restart collectd
   - name: Configure collectd rrdtool module
     template:
-      src: files/collectd.d/rrdtool.conf
+      src: files/collectd.conf.d/rrdtool.conf
       dest: /etc/collectd/collectd.conf.d
     notify: Restart collectd
   - name: Configure collectd sensors module
     template:
-      src: files/collectd.d/sensors.conf
+      src: files/collectd.conf.d/sensors.conf
+      dest: /etc/collectd/collectd.conf.d
+    notify: Restart collectd
+  - name: Configure collectd smart module
+    template:
+      src: files/collectd.conf.d/smart.conf
+      dest: /etc/collectd/collectd.conf.d
+    notify: Restart collectd
+  - name: Configure collectd thermal module
+    template:
+      src: files/collectd.conf.d/thermal.conf
       dest: /etc/collectd/collectd.conf.d
     notify: Restart collectd
   - name: Configure collectd unixsock module
     template:
-      src: files/collectd.d/unixsock.conf
+      src: files/collectd.conf.d/unixsock.conf
       dest: /etc/collectd/collectd.conf.d
     notify: Restart collectd
   handlers:
