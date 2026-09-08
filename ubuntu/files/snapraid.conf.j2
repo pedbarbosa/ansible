@@ -1,0 +1,16 @@
+parity {{ pms_parity_mount }}/snapraid.parity
+content /var/snapraid.content
+{% for disk in pms_data_mounts %}
+content {{ disk.mount }}/.snapraid.content
+{% endfor %}
+{% for disk in pms_data_mounts %}
+data {{ disk.name }} {{ disk.mount }}/
+{% endfor %}
+
+# Excludes hidden files and directories
+exclude *.unrecoverable
+exclude /tmp/
+exclude /lost+found/
+exclude downloads/
+exclude appdata/
+exclude *.!sync
