@@ -128,13 +128,13 @@
       get_url:
         url: "https://github.com/trapexit/mergerfs/releases/download/{{ mergerfs_tag }}/mergerfs_{{ mergerfs_tag }}.ubuntu-{{ ansible_lsb.codename }}_amd64.deb"
         dest: "/tmp/mergerfs_{{ mergerfs_tag }}.deb"
-      when: mergerfs_installed_version.stdout is version(mergerfs_tag, '<') or mergerfs_installed_version.stdout == ""
+      when: mergerfs_installed_version.stdout == "" or mergerfs_installed_version.stdout is version(mergerfs_tag, '<')
       check_mode: false
 
     - name: pms - Install MergerFS if the latest version is newer or not installed
       apt:
         deb: "/tmp/mergerfs_{{ mergerfs_tag }}.deb"
-      when: mergerfs_installed_version.stdout is version(mergerfs_tag, '<') or mergerfs_installed_version.stdout == ""
+      when: mergerfs_installed_version.stdout == "" or mergerfs_installed_version.stdout is version(mergerfs_tag, '<')
 
   handlers:
     - name: pms - Reload snapraidd
