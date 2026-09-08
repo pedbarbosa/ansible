@@ -27,6 +27,10 @@
         src: files/gitconfig
         dest: "{{ home_dir }}/.gitconfig"
         mode: 0640
+    - name: slack-notify - Ensure packaging module is available (required by ansible.builtin.pip on Python 3.12+)
+      ansible.builtin.command:
+        cmd: python3 -m pip install --break-system-packages packaging
+      changed_when: false
     - name: slack-notify - Install requests module
       ansible.builtin.pip:
         name: requests
