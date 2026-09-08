@@ -55,7 +55,8 @@ fi
 if is_debian; then
   playbook=ubuntu
 else
-  playbook=arch
+  echo "Unsupported OS, exiting ..."
+  exit 1
 fi
 
 ansible-playbook -CD "$playbook".yml

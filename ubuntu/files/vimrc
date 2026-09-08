@@ -16,7 +16,6 @@ Plug 'tpope/vim-unimpaired'
 Plug 'ekalinin/Dockerfile.vim'
 Plug 'airblade/vim-rooter'
 Plug 'kien/ctrlp.vim'
-Plug 'rodjek/vim-puppet'
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 call plug#end()
 
@@ -40,7 +39,7 @@ set number         " show line numbers
 set cursorline     " highlight current line
 set showmatch      " Show matching brackets.
 "set ruler          " show the cursor position all the time
-"set modelines=1    " allow per-file vim configs
+"set modelines=˝    " allow per-file vim configs
 set lazyredraw     " redraw when needed. speeds up macros
 set backspace=indent,eol,start     " more powerful backspacing
 filetype plugin indent on
@@ -69,7 +68,6 @@ let g:syntastic_json_checkers=['jsonlint']
 let g:syntastic_zsh_checkers=['zsh']
 let g:syntastic_sh_checkers=['shellcheck']
 let g:syntastic_javascript_checkers=['jshint']
-let g:syntastic_puppet_checkers=['puppet']
 let g:syntastic_python_flake8_args = "--max-line-length=500"
 
 " Searching

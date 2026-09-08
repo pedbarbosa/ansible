@@ -24,7 +24,7 @@
 
   - name: vim - Configure vimrc
     copy:
-      src: files/vimrc
+      src: "{{ playbook_dir }}/../files/vimrc"
       dest: ~/.vimrc
       mode: 0664
     notify: Run PlugInstall
