@@ -44,6 +44,10 @@ if [[ -d "$HOME/.oh-my-zsh" ]]; then
 {% endfor %}
   )
   source ${ZSH}/oh-my-zsh.sh
+{% if zsh_is_mac %}
+  export HISTSIZE=50000
+  export SAVEHIST=100000
+{% endif %}
   zsh_timer ohmyzsh
 fi
 
@@ -73,7 +77,11 @@ fi
 {% endif %}
 # Set up rbenv
 if [[ -d "$HOME/.rbenv" ]]; then
+{% if zsh_is_mac %}
   export RBENV_ROOT="$HOME/.rbenv"
+{% else %}
+  export PATH="$HOME/.rbenv/bin:$PATH"
+{% endif %}
   eval "$(rbenv init -)"
   zsh_timer rbenv
 fi
@@ -112,7 +120,11 @@ zsh_timer caffeinate
 
 {% endif %}
 # Path and extra aliases
+{% if zsh_is_mac %}
 export PATH="/usr/local/sbin:$PATH:$HOME/bin:$HOME/.local/bin"
+{% else %}
+export PATH="$PATH:$HOME/bin"
+{% endif %}
 zsh_timer path
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
