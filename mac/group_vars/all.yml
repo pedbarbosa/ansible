@@ -4,7 +4,7 @@ zsh_is_mac: true
 
 homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}"
 
-is_corporate: "{{ (ansible_facts['hostname'].split('.')[0] | length) != 3 }}"
+is_corporate: "{{ ansible_facts['hostname'].split('.')[0] not in personal_hostnames }}"
 
 zsh_plugins_base:
   - aws
