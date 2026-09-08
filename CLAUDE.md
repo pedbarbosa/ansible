@@ -94,6 +94,15 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   empty/missing input first (`x == "" or x is version(y, '<')`), not
   last, so it actually short-circuits.
 
+## Response style
+
+- Keep answers concise by default — state the change/result directly,
+  skip preamble and restating the request. Expand into a fuller
+  explanation only when the user asks for one (e.g. "explain", "why",
+  "walk me through") or when a decision genuinely needs the user's input
+  (e.g. a destructive action, an ambiguous playbook change, secrets
+  handling) — those still warrant a full question, not a clipped one.
+
 ## Commit/PR style
 
 - One commit per logical fix, not squashed — makes review and future
