@@ -108,7 +108,7 @@ complete -o nospace -C /opt/homebrew/bin/terragrunt terragrunt
 {% endif %}
 zsh_timer autocomplete
 
-{% if zsh_is_mac %}
+{% if zsh_is_mac and is_corporate %}
 # Starting caffeinate
 if ! screen -list | grep -q "caffeinate"; then
   echo "$(date "+[%F %H-%M-%S]") Started caffeinate ..." >> ~/.caffeinate
