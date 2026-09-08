@@ -62,6 +62,16 @@
       mode: 0644
     notify: Reload sysctl
 
+  - name: postfix - Gather service facts
+    service_facts:
+
+  - name: postfix - Ensure service is disabled and stopped
+    service:
+      name: postfix
+      state: stopped
+      enabled: no
+    when: "'postfix.service' in services"
+
   handlers:
   - name: Restart ssh
     service:
