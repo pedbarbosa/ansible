@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+
+import sys
+from pathlib import Path
+
+import requests
+
+WEBHOOK_FILE = Path("/etc/slack-notify/webhook")
+TIMEOUT = 10
+
+
+def main():
+    try:
+        webhook_url = WEBHOOK_FILE.read_text().strip()
+    except OSError as exc:
+        print(f"Unable to read Slack webhook: {exc}", file=sys.stderr)
+        return 1
+
+    if not webhook_url:
+        print("Slack webhook is empty", file=sys.stderr)
+        return 1
+
+    message = sys.stdin.read().strip()
+
+    if not message:
+        #print("No message supplied on stdin", file=sys.stderr)
+        return 0
+
+    try:
+        response = requests.post(
+            webhook_url,
+            json={"text": message},
+            headers={"User-Agent": "slack-notify/1.0"},
+            timeout=TIMEOUT,
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        print(f"Failed to send Slack notification: {exc}", file=sys.stderr)
+        return 1
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
