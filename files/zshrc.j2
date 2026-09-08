@@ -108,7 +108,7 @@ complete -o nospace -C /opt/homebrew/bin/terragrunt terragrunt
 {% endif %}
 zsh_timer autocomplete
 
-{% if zsh_is_mac %}
+{% if zsh_is_mac and is_corporate %}
 # Starting caffeinate
 if ! screen -list | grep -q "caffeinate"; then
   echo "$(date "+[%F %H-%M-%S]") Started caffeinate ..." >> ~/.caffeinate
@@ -135,8 +135,10 @@ zsh_timer p10k_config
 # Disable AWS pager tool
 export AWS_PAGER=''
 
+{% if is_corporate %}
 {{ zshrc_mdm_content | trim }}
 
+{% endif %}
 {% endif %}
 zsh_timer end
 unset zsh_timer_counter

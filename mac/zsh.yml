@@ -1,9 +1,10 @@
 ---
 - hosts: localhost
   connection: local
-  vars:
-    zshrc_mdm_file: "{{ home_dir }}/.zshrc_mdm"
   tasks:
+  - name: zsh - Read secrets from file
+    include_vars:
+      file: ../secrets.yml
   - name: Check if zsh is installed
     package:
       name: [zsh, zsh-completions]
@@ -31,4 +32,3 @@
     git:
       repo: 'https://github.com/junegunn/fzf.git'
       dest: "{{ home_dir }}/.fzf"
-

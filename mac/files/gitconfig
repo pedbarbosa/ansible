@@ -6,6 +6,6 @@
 	name = Pedro Barbosa
 	email = pedbarbosa@users.noreply.github.com
 [core]
-	editor = /usr/local/bin/vim
+	editor = /opt/homebrew/bin/vim
 [pull]
 	rebase = true

@@ -17,6 +17,9 @@
       mode: 0644
     notify: logrotate - Restart 
 
+  # No system postfix package/service is installed on this host (see ubuntu/default.yml);
+  # this rotates /var/log/maillog for a postfix Docker container that bind-mounts its
+  # maillog to this path.
   - name: logrotate - Configure logrotate for postfix
     copy:
       src: files/logrotate-postfix.conf

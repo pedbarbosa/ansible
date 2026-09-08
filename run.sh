@@ -82,4 +82,4 @@ fi
 
 ansible-playbook -CD "$playbook".yml
 
-echo "This was a dry run. If you wish to apply these changes, run: ansible-playbook -v \"$playbook\".yml"
+echo "This was a dry run. If you wish to apply these changes, run: ansible-playbook -v $playbook.yml"

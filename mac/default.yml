@@ -4,13 +4,34 @@
   tasks:
     - name: Check if base packages are installed
       package:
-        name: [aria2, awscli, bash, curl, dos2unix, gh, git, grep, jq, ncdu, nmap, openssh, telnet, wget]
+        name:
+          [
+            aria2,
+            awscli,
+            bash,
+            curl,
+            dos2unix,
+            gh,
+            git,
+            grep,
+            jq,
+            ncdu,
+            nmap,
+            openssh,
+            telnet,
+            wget,
+          ]
         state: present
     - name: Configure .gitconfig
       copy:
         src: files/gitconfig
         dest: "{{ home_dir }}/.gitconfig"
         mode: 0640
+    - name: slack-notify - Ensure packaging module is available (required by ansible.builtin.pip on Python 3.12+)
+      ansible.builtin.command:
+        cmd: "{{ ansible_facts['python']['executable'] }} -m pip install --break-system-packages packaging"
+      changed_when: false
+      check_mode: false
     - name: slack-notify - Install requests module
       ansible.builtin.pip:
         name: requests
@@ -26,7 +47,7 @@
         state: directory
         owner: root
         group: wheel
-        mode: 0750
+        mode: 0755
     - name: slack-notify - Configure webhook file
       become: yes
       copy:
@@ -34,7 +55,7 @@
         dest: /etc/slack-notify/webhook
         owner: root
         group: wheel
-        mode: 0600
+        mode: 0644
     - name: slack-notify - Install script
       become: yes
       copy:
@@ -43,4 +64,3 @@
         owner: root
         group: wheel
         mode: 0755
-
