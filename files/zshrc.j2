@@ -135,8 +135,10 @@ zsh_timer p10k_config
 # Disable AWS pager tool
 export AWS_PAGER=''
 
+{% if is_corporate %}
 {{ zshrc_mdm_content | trim }}
 
+{% endif %}
 {% endif %}
 zsh_timer end
 unset zsh_timer_counter
