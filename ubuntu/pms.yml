@@ -19,6 +19,7 @@
         method: GET
         return_content: yes
       register: snapraid_latest
+      check_mode: false
 
     - name: pms - Extract the snapraid deb asset
       set_fact:
@@ -53,6 +54,7 @@
         method: GET
         return_content: yes
       register: snapraid_daemon_latest
+      check_mode: false
 
     - name: pms - Extract the snapraid-daemon deb asset
       set_fact:
@@ -110,6 +112,7 @@
         method: GET
         return_content: yes
       register: mergerfs_latest
+      check_mode: false
 
     - name: pms - Extract the MergerFS tag name
       set_fact:
