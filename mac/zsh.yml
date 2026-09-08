@@ -1,8 +1,6 @@
 ---
 - hosts: localhost
   connection: local
-  vars:
-    zshrc_mdm_file: "{{ home_dir }}/.zshrc_mdm"
   tasks:
   - name: Check if zsh is installed
     package:
@@ -31,4 +29,3 @@
     git:
       repo: 'https://github.com/junegunn/fzf.git'
       dest: "{{ home_dir }}/.fzf"
-
