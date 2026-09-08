@@ -5,12 +5,23 @@ function is_debian {
     [[ -e /etc/debian_version ]]
 }
 
+function is_macos {
+    [[ "$(uname -s)" == "Darwin" ]]
+}
+
 # Check if Ansible is installed
 if ! command -v ansible &> /dev/null; then
     echo "Ansible isn't installed!"
     if is_debian; then
         echo "Calling 'apt' to install Ansible ..."
         sudo apt install -y ansible sshpass
+    elif is_macos; then
+        if ! command -v brew &> /dev/null; then
+            echo "Homebrew isn't installed, installing ..."
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        fi
+        echo "Calling 'brew' to install Ansible ..."
+        brew install ansible
     fi
 fi
 
@@ -62,6 +73,8 @@ fi
 
 if is_debian; then
     playbook=ubuntu
+elif is_macos; then
+    playbook=mac
 else
     echo "Unsupported OS, exiting ..."
     exit 1
