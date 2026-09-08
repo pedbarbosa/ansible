@@ -15,7 +15,7 @@
 - import_playbook: ubuntu/zsh.yml
 
 # Set up collectd
-- import_playbook: collectd/ubuntu.yml
+- import_playbook: ubuntu/collectd.yml
 
 # Set up log rotation
 - import_playbook: ubuntu/logrotate.yml
