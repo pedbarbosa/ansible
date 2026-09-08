@@ -1,3 +1,0 @@
-# File managed by Ansible - https://github.com/pedbarbosa/ansible
-
-{{ domain }}
