@@ -3,113 +3,113 @@
   become: yes
   become_user: root
   tasks:
-  - name: ubuntu - Upgrade all outdated packages
-    apt:
-      upgrade: dist
-      update_cache: true
-      autoremove: yes
-      autoclean: yes
+    - name: ubuntu - Upgrade all outdated packages
+      apt:
+        upgrade: dist
+        update_cache: true
+        autoremove: yes
+        autoclean: yes
 
-  - name: ubuntu - Check if base packages are installed
-    apt:
-      name: bash-completion, curl, ethtool, git, iftop, iotop, lsof, meld, ncdu, net-tools, openssh-server, plocate, python3-requests, rsync, wget
-      state: present
-      update_cache: true
+    - name: ubuntu - Check if base packages are installed
+      apt:
+        name: bash-completion, curl, ethtool, git, iftop, iotop, lsof, meld, ncdu, net-tools, openssh-server, plocate, python3-requests, rsync, wget
+        state: present
+        update_cache: true
 
-  - name: bash - Update bashrc
-    copy:
-      src: files/bash.bashrc
-      dest: /etc/bash.bashrc
-      owner: root
-      group: root
-      mode: 0644
+    - name: bash - Update bashrc
+      copy:
+        src: files/bash.bashrc
+        dest: /etc/bash.bashrc
+        owner: root
+        group: root
+        mode: 0644
 
-  - name: bash - Update MOTD
-    copy:
-      src: "{{ item }}"
-      dest: /etc/update-motd.d/
-      owner: root
-      group: root
-      mode: 0755
-    with_fileglob:
-      - "files/10-help-text"
-      - "files/89-docker-info"
-    notify: Update MOTD
+    - name: bash - Update MOTD
+      copy:
+        src: "{{ item }}"
+        dest: /etc/update-motd.d/
+        owner: root
+        group: root
+        mode: 0755
+      with_fileglob:
+        - "files/10-help-text"
+        - "files/89-docker-info"
+      notify: Update MOTD
 
-  - name: bash - Disable MOTD news
-    ansible.builtin.lineinfile:
-      path: /etc/default/motd-news
-      regexp: '^ENABLED='
-      line: 'ENABLED=0'
-      state: present
-    notify: Update MOTD
+    - name: bash - Disable MOTD news
+      ansible.builtin.lineinfile:
+        path: /etc/default/motd-news
+        regexp: "^ENABLED="
+        line: "ENABLED=0"
+        state: present
+      notify: Update MOTD
 
-  - name: ssh - Configure service
-    copy:
-      src: files/sshd_config
-      dest: /etc/ssh/sshd_config
-      owner: root
-      group: root
-      mode: 0644
-    notify: Restart ssh
+    - name: ssh - Configure service
+      copy:
+        src: files/sshd_config
+        dest: /etc/ssh/sshd_config
+        owner: root
+        group: root
+        mode: 0644
+      notify: Restart ssh
 
-  - name: Configure sysctl.conf
-    copy:
-      src: files/sysctl.conf
-      dest: /etc/sysctl.conf
-      owner: root
-      group: root
-      mode: 0644
-    notify: Reload sysctl
+    - name: Configure sysctl.conf
+      copy:
+        src: files/sysctl.conf
+        dest: /etc/sysctl.conf
+        owner: root
+        group: root
+        mode: 0644
+      notify: Reload sysctl
 
-  - name: postfix - Gather service facts
-    service_facts:
+    - name: postfix - Gather service facts
+      service_facts:
 
-  - name: postfix - Ensure service is disabled and stopped
-    service:
-      name: postfix
-      state: stopped
-      enabled: no
-    when: "'postfix.service' in services"
+    - name: postfix - Ensure service is disabled and stopped
+      service:
+        name: postfix
+        state: stopped
+        enabled: no
+      when: "'postfix.service' in services"
 
-  - name: slack-notify - Read secrets from file
-    include_vars:
-      file: ../secrets.yml
+    - name: slack-notify - Read secrets from file
+      include_vars:
+        file: ../secrets.yml
 
-  - name: slack-notify - Ensure config directory exists
-    file:
-      path: /etc/slack-notify
-      state: directory
-      owner: root
-      group: root
-      mode: 0750
+    - name: slack-notify - Ensure config directory exists
+      file:
+        path: /etc/slack-notify
+        state: directory
+        owner: root
+        group: root
+        mode: 0755
 
-  - name: slack-notify - Configure webhook file
-    copy:
-      content: "{{ slack_notify_webhook_url }}\n"
-      dest: /etc/slack-notify/webhook
-      owner: root
-      group: root
-      mode: 0600
+    - name: slack-notify - Configure webhook file
+      copy:
+        content: "{{ slack_notify_webhook_url }}\n"
+        dest: /etc/slack-notify/webhook
+        owner: root
+        group: root
+        mode: 0644
 
-  - name: slack-notify - Install script
-    copy:
-      src: "{{ playbook_dir }}/../files/slack-notify"
-      dest: /usr/local/bin/slack-notify
-      owner: root
-      group: root
-      mode: 0755
+    - name: slack-notify - Install script
+      copy:
+        src: "{{ playbook_dir }}/../files/slack-notify"
+        dest: /usr/local/bin/slack-notify
+        owner: root
+        group: root
+        mode: 0755
 
   handlers:
-  - name: Restart ssh
-    service:
-      name: ssh
-      state: restarted
+    - name: Restart ssh
+      service:
+        name: ssh
+        state: restarted
 
-  - name: Reload sysctl
-    become: yes
-    command: sysctl -p
+    - name: Reload sysctl
+      become: yes
+      command: sysctl -p
 
-  - name: Update MOTD
-    become: yes
-    command: run-parts /etc/update-motd.d
+    - name: Update MOTD
+      become: yes
+      command: run-parts /etc/update-motd.d

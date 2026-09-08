@@ -4,7 +4,23 @@
   tasks:
     - name: Check if base packages are installed
       package:
-        name: [aria2, awscli, bash, curl, dos2unix, gh, git, grep, jq, ncdu, nmap, openssh, telnet, wget]
+        name:
+          [
+            aria2,
+            awscli,
+            bash,
+            curl,
+            dos2unix,
+            gh,
+            git,
+            grep,
+            jq,
+            ncdu,
+            nmap,
+            openssh,
+            telnet,
+            wget,
+          ]
         state: present
     - name: Configure .gitconfig
       copy:
@@ -26,7 +42,7 @@
         state: directory
         owner: root
         group: wheel
-        mode: 0750
+        mode: 0755
     - name: slack-notify - Configure webhook file
       become: yes
       copy:
@@ -34,7 +50,7 @@
         dest: /etc/slack-notify/webhook
         owner: root
         group: wheel
-        mode: 0600
+        mode: 0644
     - name: slack-notify - Install script
       become: yes
       copy:
@@ -43,4 +59,3 @@
         owner: root
         group: wheel
         mode: 0755
-
