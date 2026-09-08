@@ -7,10 +7,28 @@
     apt:
       name: vim
       state: present
+
+- hosts: all
+  tasks:
+  - name: vim - Create autoload directory
+    file:
+      path: ~/.vim/autoload
+      state: directory
+      mode: 0775
+
+  - name: vim - Install vim-plug
+    ansible.builtin.get_url: 
+      url: https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+      dest: ~/.vim/autoload/plug.vim
+      mode: 0664
+
   - name: vim - Configure vimrc
     copy:
-      src: files/vimrc
-      dest: /etc/vim/vimrc
-      owner: root
-      group: root
-      mode: 0644
+      src: "{{ playbook_dir }}/../files/vimrc"
+      dest: ~/.vimrc
+      mode: 0664
+    notify: Run PlugInstall
+
+  handlers:
+  - name: Run PlugInstall
+    command: vim +'PlugInstall --sync' +qa

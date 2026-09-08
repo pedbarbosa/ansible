@@ -7,13 +7,24 @@
     apt:
       name: samba
       state: present
-  - name: Read secrets from file
+
+  - name: samba - Read secrets from file
     include_vars:
       file: ../secrets.yml
+
   - name: samba - Configure smb.conf
     template:
       src: files/smb.conf
       dest: /etc/samba/smb.conf
+      owner: root
+      group: root
+      mode: 0644
+    notify: samba - Restart
+
+  - name: samba - Configure shared permissions
+    template:
+      src: files/smb_shared-perms.conf
+      dest: /etc/samba/shared-perms.conf
       owner: root
       group: root
       mode: 0644

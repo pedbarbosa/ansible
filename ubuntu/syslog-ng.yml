@@ -3,14 +3,34 @@
   become: yes
   become_user: root
   tasks:
+  - name: syslog-ng - Check if syslog-ng key is set up
+    stat:
+      path: /etc/apt/trusted.gpg.d/syslog-ng-key.asc
+    register: syslog_key_exists
+    changed_when: not syslog_key_exists.stat.exists
+    notify: syslog-ng - Get key
+
+  - name: syslog-ng - Flush handlers
+    meta: flush_handlers
+
+  - name: syslog-ng - Set syslog-ng repo
+    copy:
+      src: files/syslog-ng-ose.list
+      dest: /etc/apt/sources.list.d/syslog-ng-ose.list
+      owner: root
+      group: root
+      mode: 0644
+
   - name: syslog-ng - Ensure rsyslog is absent
     apt:
       name: rsyslog
       state: absent
+
   - name: syslog-ng - Check if installed
     apt:
       name: syslog-ng
       state: present
+
   - name: syslog-ng - Configure service
     copy:
       src: files/syslog-ng.conf
@@ -18,7 +38,17 @@
       owner: root
       group: root
       mode: 0644
-    notify: Reload syslog-ng
+    notify: syslog-ng - Reload service 
+
+  - name: syslog-ng - Configure remote listener
+    copy:
+      src: files/syslog-ng_remote.conf
+      dest: /etc/syslog-ng/conf.d/remote.conf
+      owner: root
+      group: root
+      mode: 0644
+    notify: syslog-ng - Reload service
+
   - name: syslog-ng - Configure logrotate for service
     copy:
       src: files/logrotate-syslog-ng.conf
@@ -26,9 +56,22 @@
       owner: root
       group: root
       mode: 0644
-    notify: Reload syslog-ng
+    notify: syslog-ng - Reload service
+
+  - name: syslog-ng - Ensure service is enabled
+    service:
+      name: syslog-ng
+      enabled: yes
+
   handlers:
   - name: syslog-ng - Reload service
     service:
       name: syslog-ng
       state: reloaded
+
+  - name: syslog-ng - Get key
+    ansible.builtin.get_url:
+      url: https://ose-repo.syslog-ng.com/apt/syslog-ng-ose-pub.asc
+      dest: /etc/apt/trusted.gpg.d/syslog-ng-key.asc
+      mode: 0644
+

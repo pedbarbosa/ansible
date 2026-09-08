@@ -1,0 +1,12 @@
+zsh_is_mac: false
+
+zsh_plugins:
+  - command-not-found
+  - cp
+  - docker
+  - docker-compose
+  - git
+  - gitfast
+  - pip
+  - rsync
+  - sudo

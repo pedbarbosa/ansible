@@ -7,23 +7,43 @@
     apt:
       name: zsh
       state: present
+
+  - name: zsh - Read secrets from file
+    include_vars:
+      file: ../secrets.yml
+
+  - name: zsh - Set default shell
+    user:
+      name: "{{ main_user_account }}"
+      shell: /bin/zsh
+
 - hosts: all
   tasks:
     - name: zsh - Configure zshrc for user
-      copy:
-        src: files/zshrc
+      template:
+        src: "{{ playbook_dir }}/../files/zshrc.j2"
         dest: ~/.zshrc
+
     - name: zsh - Configure oh-my-zsh for user
       git:
         repo: 'https://github.com/robbyrussell/oh-my-zsh.git'
         dest: ~/.oh-my-zsh
         update: yes
+
+    - name: zsh - Install Powerlevel10k for OMZ
+      ansible.builtin.git:
+        repo: 'https://github.com/romkatv/powerlevel10k.git'
+        dest: ~/.oh-my-zsh/custom/themes/powerlevel10k
+        depth: 1
+        update: yes
+
     - name: zsh - Configure fzf for user
       git:
         repo: 'https://github.com/junegunn/fzf.git'
         dest: ~/.fzf
         update: yes
       register: fzf
+
     - name: zsh - Install fzf on user
       command: chdir=~/.fzf ./install --key-bindings --completion --update-rc
       when: fzf.changed

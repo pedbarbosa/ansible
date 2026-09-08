@@ -11,4 +11,36 @@
         src: files/gitconfig
         dest: "{{ home_dir }}/.gitconfig"
         mode: 0640
+    - name: slack-notify - Install requests module
+      ansible.builtin.pip:
+        name: requests
+        executable: pip3
+        extra_args: --break-system-packages
+    - name: slack-notify - Read secrets from file
+      include_vars:
+        file: ../secrets.yml
+    - name: slack-notify - Ensure config directory exists
+      become: yes
+      file:
+        path: /etc/slack-notify
+        state: directory
+        owner: root
+        group: wheel
+        mode: 0750
+    - name: slack-notify - Configure webhook file
+      become: yes
+      copy:
+        content: "{{ slack_notify_webhook_url }}\n"
+        dest: /etc/slack-notify/webhook
+        owner: root
+        group: wheel
+        mode: 0600
+    - name: slack-notify - Install script
+      become: yes
+      copy:
+        src: "{{ playbook_dir }}/../files/slack-notify"
+        dest: /usr/local/bin/slack-notify
+        owner: root
+        group: wheel
+        mode: 0755
 

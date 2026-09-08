@@ -1,0 +1,143 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+    - name: pms - Check if required packages are installed
+      apt:
+        name: fuse, smartmontools
+        state: present
+        update_cache: true
+
+    - name: pms - Read secrets from file
+      include_vars:
+        file: ../secrets.yml
+
+    - name: pms - Get the latest snapraid release
+      uri:
+        url: https://api.github.com/repos/amadvance/snapraid/releases/latest
+        method: GET
+        return_content: yes
+      register: snapraid_latest
+      check_mode: false
+
+    - name: pms - Extract the snapraid deb asset
+      set_fact:
+        snapraid_deb_name: "{{ (snapraid_latest.json.assets | selectattr('name', 'match', '.*_amd64\\.deb$') | first).name }}"
+        snapraid_deb_url: "{{ (snapraid_latest.json.assets | selectattr('name', 'match', '.*_amd64\\.deb$') | first).browser_download_url }}"
+
+    - name: pms - Extract the snapraid package version
+      set_fact:
+        snapraid_version: "{{ snapraid_deb_name | regex_search('_([^_]+)_amd64\\.deb$', '\\1') | first }}"
+
+    - name: pms - Get the installed version of snapraid
+      command: dpkg-query -W -f='${Version}' snapraid
+      register: snapraid_installed_version
+      failed_when: false
+      changed_when: false
+
+    - name: pms - Download the latest snapraid package if needed
+      get_url:
+        url: "{{ snapraid_deb_url }}"
+        dest: "/tmp/{{ snapraid_deb_name }}"
+      when: snapraid_installed_version.stdout != snapraid_version
+      check_mode: false
+
+    - name: pms - Install snapraid if needed
+      apt:
+        deb: "/tmp/{{ snapraid_deb_name }}"
+      when: snapraid_installed_version.stdout != snapraid_version
+
+    - name: pms - Get the latest snapraid-daemon release
+      uri:
+        url: https://api.github.com/repos/amadvance/snapraid-daemon/releases/latest
+        method: GET
+        return_content: yes
+      register: snapraid_daemon_latest
+      check_mode: false
+
+    - name: pms - Extract the snapraid-daemon deb asset
+      set_fact:
+        snapraid_daemon_deb_name: "{{ (snapraid_daemon_latest.json.assets | selectattr('name', 'match', '.*_amd64\\.deb$') | first).name }}"
+        snapraid_daemon_deb_url: "{{ (snapraid_daemon_latest.json.assets | selectattr('name', 'match', '.*_amd64\\.deb$') | first).browser_download_url }}"
+
+    - name: pms - Extract the snapraid-daemon package version
+      set_fact:
+        snapraid_daemon_version: "{{ snapraid_daemon_deb_name | regex_search('_([^_]+)_amd64\\.deb$', '\\1') | first }}"
+
+    - name: pms - Get the installed version of snapraid-daemon
+      command: dpkg-query -W -f='${Version}' snapraid-daemon
+      register: snapraid_daemon_installed_version
+      failed_when: false
+      changed_when: false
+
+    - name: pms - Download the latest snapraid-daemon package if needed
+      get_url:
+        url: "{{ snapraid_daemon_deb_url }}"
+        dest: "/tmp/{{ snapraid_daemon_deb_name }}"
+      when: snapraid_daemon_installed_version.stdout != snapraid_daemon_version
+      check_mode: false
+
+    - name: pms - Install snapraid-daemon if needed
+      apt:
+        deb: "/tmp/{{ snapraid_daemon_deb_name }}"
+      when: snapraid_daemon_installed_version.stdout != snapraid_daemon_version
+
+    - name: pms - Configure snapraid.conf
+      template:
+        src: files/snapraid.conf.j2
+        dest: /etc/snapraid.conf
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: pms - Configure snapraidd.conf
+      copy:
+        src: files/snapraidd.conf
+        dest: /etc/snapraidd.conf
+        owner: root
+        group: root
+        mode: 0644
+      notify: pms - Reload snapraidd
+
+    - name: pms - Ensure snapraidd service is enabled and running
+      service:
+        name: snapraidd
+        state: started
+        enabled: yes
+
+    - name: pms - Get the latest MergerFS release tag
+      uri:
+        url: https://api.github.com/repos/trapexit/mergerfs/releases/latest
+        method: GET
+        return_content: yes
+      register: mergerfs_latest
+      check_mode: false
+
+    - name: pms - Extract the MergerFS tag name
+      set_fact:
+        mergerfs_tag: "{{ mergerfs_latest.json.tag_name }}"
+
+    - name: pms - Get the installed version of MergerFS
+      command: dpkg-query -W -f='${Version}' mergerfs
+      register: mergerfs_installed_version
+      failed_when: false
+      changed_when: false
+
+    - name: pms - Download the latest MergerFS package if needed
+      get_url:
+        url: "https://github.com/trapexit/mergerfs/releases/download/{{ mergerfs_tag }}/mergerfs_{{ mergerfs_tag }}.ubuntu-{{ ansible_lsb.codename }}_amd64.deb"
+        dest: "/tmp/mergerfs_{{ mergerfs_tag }}.deb"
+      when: mergerfs_installed_version.stdout == "" or mergerfs_installed_version.stdout is version(mergerfs_tag, '<')
+      check_mode: false
+
+    - name: pms - Install MergerFS if the latest version is newer or not installed
+      apt:
+        deb: "/tmp/mergerfs_{{ mergerfs_tag }}.deb"
+      when: mergerfs_installed_version.stdout == "" or mergerfs_installed_version.stdout is version(mergerfs_tag, '<')
+
+  handlers:
+    - name: pms - Reload snapraidd
+      service:
+        name: snapraidd
+        state: reloaded

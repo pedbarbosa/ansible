@@ -2,16 +2,17 @@
 # Core Ubuntu packages and configuration
 - import_playbook: ubuntu/default.yml
 
+# Set up pre-requisites
+- import_playbook: ubuntu/python.yml
+
 # Services and configuration for Ubuntu
+- import_playbook: ubuntu/collectd.yml
 - import_playbook: ubuntu/docker.yml
 - import_playbook: ubuntu/logrotate.yml
-- import_playbook: ubuntu/python.yml
+- import_playbook: ubuntu/pms.yml
+- import_playbook: ubuntu/ruby.yml
 - import_playbook: ubuntu/samba.yml
 - import_playbook: ubuntu/security.yml
 - import_playbook: ubuntu/syslog-ng.yml
 - import_playbook: ubuntu/vim.yml
 - import_playbook: ubuntu/zsh.yml
-
-# Agnostic configuration
-- import_playbook: collectd/ubuntu.yml
-

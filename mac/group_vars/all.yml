@@ -1,5 +1,7 @@
 home_dir: "{{ ansible_facts['env']['HOME'] }}"
 
+zsh_is_mac: true
+
 homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}"
 
 is_corporate: "{{ (ansible_facts['hostname'].split('.')[0] | length) != 3 }}"
