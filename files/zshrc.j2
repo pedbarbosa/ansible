@@ -11,6 +11,11 @@ zsh_timer() {
 }
 zsh_timer start
 
+{% if zsh_is_mac %}
+eval "$({{ homebrew_prefix }}/bin/brew shellenv)"
+zsh_timer shellenv
+
+{% endif %}
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block, everything else may go below.
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
@@ -33,7 +38,11 @@ if [[ -d "$HOME/.oh-my-zsh" ]]; then
   DISABLE_AUTO_UPDATE="true"
   COMPLETION_WAITING_DOTS="true"
   HIST_STAMPS="yyyy-mm-dd"
-  plugins=(command-not-found cp docker docker-compose git gitfast pip rsync sudo)
+  plugins=(
+{% for plugin in zsh_plugins %}
+    {{ plugin }}
+{% endfor %}
+  )
   source ${ZSH}/oh-my-zsh.sh
   zsh_timer ohmyzsh
 fi
@@ -42,6 +51,9 @@ fi
 if [[ -x /usr/local/share/zsh-completions ]]; then
   fpath=(/usr/local/share/zsh-completions ${fpath})
   compinit
+{% if zsh_is_mac %}
+  complete -C aws_completer aws
+{% endif %}
   zsh_timer compinit
 fi
 
@@ -51,23 +63,68 @@ if [[ -f "$HOME/.fzf.zsh" ]]; then
   zsh_timer fzf
 fi
 
+{% if zsh_is_mac %}
+# iTerm integration
+if [[ -f "$HOME/.iterm2_shell_integration.zsh" ]]; then
+  source ~/.iterm2_shell_integration.zsh
+  zsh_timer iterm
+fi
+
+{% endif %}
 # Set up rbenv
 if [[ -d "$HOME/.rbenv" ]]; then
-  export PATH="$HOME/.rbenv/bin:$PATH"
+  export RBENV_ROOT="$HOME/.rbenv"
   eval "$(rbenv init -)"
   zsh_timer rbenv
 fi
 
-# Path and extra aliases
-export PATH="$PATH:$HOME/bin"
-zsh_timer path
+{% if zsh_is_mac %}
+# Use legacy MySQL client
+if [[ -f "{{ homebrew_prefix }}/opt/mysql-client@8.4/bin/mysql" ]]; then
+  export PATH="{{ homebrew_prefix }}/opt/mysql-client@8.4/bin:$PATH"
+  zsh_timer mysql_legacy
+fi
 
+# Set up command-not-found
+HOMEBREW_COMMAND_NOT_FOUND_HANDLER="$(brew --repository)/Library/Homebrew/command-not-found/handler.sh"
+if [ -f "$HOMEBREW_COMMAND_NOT_FOUND_HANDLER" ]; then
+  source "$HOMEBREW_COMMAND_NOT_FOUND_HANDLER";
+  zsh_timer commandnotfound
+fi
+
+{% endif %}
+# Set up autocompletes
 autoload -U +X bashcompinit && bashcompinit
+{% if zsh_is_mac %}
+complete -o nospace -C /opt/homebrew/bin/terragrunt terragrunt
+{% endif %}
 zsh_timer autocomplete
+
+{% if zsh_is_mac %}
+# Starting caffeinate
+if ! screen -list | grep -q "caffeinate"; then
+  echo "$(date "+[%F %H-%M-%S]") Started caffeinate ..." >> ~/.caffeinate
+  screen -dmS caffeinate caffeinate -diu
+else
+  echo "$(date "+[%F %H-%M-%S]") Caffeinate already running." >> ~/.caffeinate
+fi
+zsh_timer caffeinate
+
+{% endif %}
+# Path and extra aliases
+export PATH="/usr/local/sbin:$PATH:$HOME/bin:$HOME/.local/bin"
+zsh_timer path
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 zsh_timer p10k_config
 
+{% if zsh_is_mac %}
+# Disable AWS pager tool
+export AWS_PAGER=''
+
+{{ zshrc_mdm_content | trim }}
+
+{% endif %}
 zsh_timer end
 unset zsh_timer_counter

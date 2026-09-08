@@ -15,7 +15,7 @@
       mode: 0640
   - name: Configure .zshrc
     template:
-      src: files/zshrc.j2
+      src: "{{ playbook_dir }}/../files/zshrc.j2"
       dest: "{{ home_dir }}/.zshrc"
       mode: 0640
   - name: Clone oh-my-zsh git repository
