@@ -1,0 +1,19 @@
+---
+- hosts: openwrt
+  gather_facts: false
+  tasks:
+    - name: openwrt - Read secrets from file
+      include_vars:
+        file: ../secrets.yml
+
+    - name: openwrt - Configure system
+      community.openwrt.template:
+        src: files/system.conf
+        dest: /etc/config/system
+      notify: openwrt - Restart system config
+
+  handlers:
+    - name: openwrt - Restart system config
+      community.openwrt.service:
+        name: system
+        state: reloaded

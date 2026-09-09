@@ -1,0 +1,27 @@
+---
+- hosts: openwrt
+  gather_facts: false
+  tasks:
+    - name: openwrt - Read router-only settings
+      include_vars:
+        file: ../router.yml
+      when: "'router' in group_names"
+
+    - name: openwrt - Configure dhcp
+      community.openwrt.template:
+        src: files/dhcp.conf
+        dest: /etc/config/dhcp
+      notify:
+        - openwrt - Restart dnsmasq
+        - openwrt - Restart odhcpd
+
+  handlers:
+    - name: openwrt - Restart dnsmasq
+      community.openwrt.service:
+        name: dnsmasq
+        state: restarted
+
+    - name: openwrt - Restart odhcpd
+      community.openwrt.service:
+        name: odhcpd
+        state: restarted

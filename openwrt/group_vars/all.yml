@@ -1,0 +1,60 @@
+ansible_user: root
+
+openwrt_packages_common:
+  - avahi-dbus-daemon
+  - collectd
+  - collectd-mod-cpu
+  - collectd-mod-df
+  - collectd-mod-interface
+  - collectd-mod-iwinfo
+  - collectd-mod-load
+  - collectd-mod-memory
+  - collectd-mod-network
+  - collectd-mod-processes
+  - collectd-mod-uptime
+  - diffutils
+  - git
+  - git-http
+  - ip-bridge
+  - luci
+  - luci-app-irqbalance
+  - luci-ssl
+  - msmtp
+  - ncdu
+  - rsync
+  - tcpdump
+
+openwrt_packages: "{{ openwrt_packages_common + (openwrt_packages_router if 'router' in group_names else []) }}"
+
+# openwrt/collectd.yml
+openwrt_collectd_plugins_common:
+  - cpu
+  - df
+  - interface
+  - iwinfo
+  - load
+  - memory
+  - network
+  - processes
+  - uptime
+
+openwrt_collectd_plugins: "{{ openwrt_collectd_plugins_common + (openwrt_collectd_plugins_router if 'router' in group_names else []) }}"
+
+openwrt_collectd_server_port: 25826
+
+openwrt_collectd_processes:
+  - collectd
+  - dnsmasq
+  - dropbear
+  - ntpd
+  - odhcpd
+  - uhttpd
+
+# openwrt/system.yml
+openwrt_log_port: 514
+openwrt_log_size: "{{ openwrt_log_size_router if 'router' in group_names else 64 }}"
+openwrt_cronloglevel: "{{ openwrt_cronloglevel_router if 'router' in group_names else 5 }}"
+openwrt_leds: []
+
+# openwrt/irqbalance.yml
+openwrt_irqbalance_enabled: "{{ 'router' in group_names }}"

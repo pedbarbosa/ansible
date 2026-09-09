@@ -1,0 +1,8 @@
+---
+- hosts: openwrt
+  gather_facts: false
+  tasks:
+    - name: openwrt - Configure luci
+      community.openwrt.template:
+        src: files/luci.conf
+        dest: /etc/config/luci

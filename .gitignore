@@ -8,5 +8,8 @@
 # Secrets file
 secrets.yml
 
+# Router-only settings too revealing of the internal network to commit
+router.yml
+
 # Testing
 test/

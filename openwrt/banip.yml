@@ -1,0 +1,15 @@
+---
+- hosts: router
+  gather_facts: false
+  tasks:
+    - name: openwrt - Configure banip
+      community.openwrt.template:
+        src: files/banip.conf
+        dest: /etc/config/banip
+      notify: openwrt - Restart banip
+
+  handlers:
+    - name: openwrt - Restart banip
+      community.openwrt.service:
+        name: banip
+        state: restarted
