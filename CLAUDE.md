@@ -91,6 +91,17 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   `ansible.builtin`/`community.general` modules — it's shell-based
   (`community.openwrt.opkg`/`uci`/`service`/`file`/`command`, etc.) so it
   works without Python installed on the router/APs.
+- This is the repo's first external collection, so nothing else here does
+  `ansible-galaxy collection install` — `run.sh` only bootstraps ansible
+  itself plus SSH/sudoers for the ubuntu.yml/mac.yml localhost targets, and
+  deliberately doesn't touch openwrt.yml (the router/APs aren't the machine
+  running Ansible). Install `requirements.yml` manually, same one-time step
+  as copying `secrets.yml.example`.
+- When bumping the version pin in `requirements.yml`, check the collection's
+  actual GitHub *tags/releases* (or `galaxy.yml` at that tag), not the
+  version in its `main` branch's `galaxy.yml` — `main` bumps the version
+  ahead of what's published to Galaxy, so pinning to it produces an
+  unsatisfiable `ansible-galaxy collection install` requirement.
 - Check-mode support varies per module, same "force `check_mode: false` only
   for idempotent bootstrapping" rule as the mac/ubuntu gotcha above:
   `community.openwrt.opkg`, `service`, and `file` support check mode fully
