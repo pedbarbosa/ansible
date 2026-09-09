@@ -126,6 +126,18 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
 - `community.openwrt.opkg`'s `name` argument is `type: str` only (no list
   support like `ansible.builtin.apt`/`package`) — package lists in
   `group_vars` are real YAML lists and get `| join(',')` at the point of use.
+- `openwrt/collectd.yml` pushes a single `/etc/config/collectd` rendered from
+  `openwrt/files/collectd.conf` via `community.openwrt.template`, rather than
+  one `community.openwrt.uci` task per option — same reasoning as the
+  mac/ubuntu playbooks' use of `template` over many individual edits: one
+  task, a readable whole-file diff under `-D`, and full check-mode support.
+  Which plugins render (`conntrack`/`dns`/`thermal` are router-only) is
+  driven by `openwrt_collectd_plugins` in `group_vars`, mirroring the
+  `openwrt_packages_common`/`openwrt_packages_router` split above — keep
+  both splits in sync (a collectd plugin needs its `collectd-mod-*` package
+  installed by `openwrt/default.yml` first). The collectd server address
+  (`openwrt_collectd_server_host`) lives in `secrets.yml`, same as the
+  router/AP addresses, since it's also a real network detail.
 
 ## Gotchas learned the hard way
 

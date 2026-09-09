@@ -5,8 +5,8 @@ openwrt_packages_common:
   - collectd
   - collectd-mod-cpu
   - collectd-mod-df
-  - collectd-mod-dns
   - collectd-mod-interface
+  - collectd-mod-iwinfo
   - collectd-mod-load
   - collectd-mod-memory
   - collectd-mod-network
@@ -25,3 +25,27 @@ openwrt_packages_common:
   - tcpdump
 
 openwrt_packages: "{{ openwrt_packages_common + (openwrt_packages_router if 'router' in group_names else []) }}"
+
+# openwrt/collectd.yml
+openwrt_collectd_plugins_common:
+  - cpu
+  - df
+  - interface
+  - iwinfo
+  - load
+  - memory
+  - network
+  - processes
+  - uptime
+
+openwrt_collectd_plugins: "{{ openwrt_collectd_plugins_common + (openwrt_collectd_plugins_router if 'router' in group_names else []) }}"
+
+openwrt_collectd_server_port: 25826
+
+openwrt_collectd_processes:
+  - collectd
+  - dnsmasq
+  - dropbear
+  - ntpd
+  - odhcpd
+  - uhttpd

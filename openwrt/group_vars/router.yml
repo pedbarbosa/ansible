@@ -3,3 +3,21 @@ openwrt_packages_router:
   - luci-app-adblock
   - banip
   - luci-app-banip
+  - collectd-mod-conntrack
+  - collectd-mod-dns
+  - collectd-mod-thermal
+
+# openwrt/collectd.yml
+openwrt_collectd_plugins_router:
+  - conntrack
+  - dns
+  - thermal
+
+openwrt_collectd_dns_interfaces:
+  - br-lan
+  - br-lan.10
+  - br-lan.20
+
+openwrt_collectd_thermal_devices:
+  - cooling_device0
+  - cooling_device1

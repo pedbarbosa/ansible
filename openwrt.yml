@@ -4,3 +4,6 @@
 
 # Core OpenWrt packages, shared across the router and both APs
 - import_playbook: openwrt/default.yml
+
+# collectd monitoring, reporting back to the same collectd server as ubuntu/collectd.yml
+- import_playbook: openwrt/collectd.yml
