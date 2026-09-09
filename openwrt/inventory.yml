@@ -10,7 +10,7 @@
 
     - name: openwrt - Register router
       add_host:
-        name: router
+        name: gateway
         ansible_host: "{{ openwrt_router_host }}"
         groups:
           - openwrt

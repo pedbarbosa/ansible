@@ -33,3 +33,5 @@ ansible-galaxy collection install -r requirements.yml
 ansible-playbook -CD openwrt.yml   # dry run
 ansible-playbook -v openwrt.yml    # apply
 ```
+
+`community.openwrt` requires `ansible-core>=2.18`; if `ansible --version` reports older (e.g. the `apt install ansible` package on some Ubuntu releases ships 2.16), you'll get a "does not support Ansible version" warning. It may still run, but isn't tested by the collection at that version — upgrade with `python3 -m pip install --user "ansible-core>=2.18"` (or `pipx`) if you hit real breakage.

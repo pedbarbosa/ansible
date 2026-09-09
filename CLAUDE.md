@@ -87,6 +87,19 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   `router`/`ap` groups at runtime. This keeps real IPs/hostnames out of the
   repo without a second gitignored file alongside `secrets.yml`. `group_vars`
   (`all.yml`/`router.yml`) still apply normally to hosts added this way.
+  - The router's registered hostname is `gateway`, not `router` — Ansible
+    warns ("Found both group and host with same name") if a host is added
+    to a group sharing its exact name. The `router` *group* name stays as
+    is since `group_vars/router.yml` and the `'router' in group_names`
+    checks depend on it; only the host's own name needed to change to
+    avoid the collision. The AP host names (from `openwrt_ap_hosts[].name`
+    in secrets, e.g. `ap-upstairs`) don't collide with the `ap` group name,
+    so they're unaffected.
+- `community.openwrt` requires `ansible-core>=2.18` (see its
+  `meta/runtime.yml`) — an older `ansible-core` (e.g. some distros' `apt
+  install ansible` package) prints a "does not support Ansible version"
+  warning but has so far still run correctly; see README for the upgrade
+  command if something actually breaks.
 - Uses the `community.openwrt` collection (declared in `requirements.yml`), not
   `ansible.builtin`/`community.general` modules — it's shell-based
   (`community.openwrt.opkg`/`uci`/`service`/`file`/`command`, etc.) so it
