@@ -1,6 +1,11 @@
 ---
 - hosts: openwrt
   gather_facts: false
+  pre_tasks:
+    - name: openwrt - Update opkg package lists
+      community.openwrt.opkg:
+        name: opkg
+        update_cache: true
   roles:
     - community.openwrt.init
   tasks:

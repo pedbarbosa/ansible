@@ -95,6 +95,17 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
     avoid the collision. The AP host names (from `openwrt_ap_hosts[].name`
     in secrets, e.g. `ap-upstairs`) don't collide with the `ap` group name,
     so they're unaffected.
+- `openwrt/default.yml` runs an explicit `opkg update` as a `pre_task`,
+  before the `community.openwrt.init` role. The role does its own cache
+  refresh internally, but only fails the play if the opkg lists directory
+  didn't exist yet at all — if the directory exists but the refresh itself
+  fails (e.g. a device that's just never had a working `opkg update`), that
+  failure is swallowed, leaving a stale/empty cache. The next role step
+  (installing `coreutils-base64`/`-md5sum`/`-sha1sum` compat shims when
+  `openssl` is missing) then fails with a confusing "Unknown package"
+  instead of the real cause. Seen in practice on an AP whose opkg cache had
+  never successfully populated; the router was unaffected only because it
+  already had `openssl` and skipped that step.
 - `community.openwrt` requires `ansible-core>=2.18` (see its
   `meta/runtime.yml`) — an older `ansible-core` (e.g. some distros' `apt
   install ansible` package) prints a "does not support Ansible version"
