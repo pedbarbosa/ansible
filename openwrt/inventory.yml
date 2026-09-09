@@ -12,6 +12,7 @@
       add_host:
         name: gateway
         ansible_host: "{{ openwrt_router_host }}"
+        openwrt_hostname: router
         groups:
           - openwrt
           - router
@@ -20,6 +21,7 @@
       add_host:
         name: "{{ item.name }}"
         ansible_host: "{{ item.host }}"
+        openwrt_hostname: "{{ item.name }}"
         groups:
           - openwrt
           - ap
