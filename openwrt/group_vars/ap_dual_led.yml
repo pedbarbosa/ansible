@@ -1,0 +1,8 @@
+openwrt_leds:
+  - name: Blue
+    sysfs: "blue:dome"
+    trigger: none
+    default: "0"
+  - name: White
+    sysfs: "white:dome"
+    trigger: default-on

@@ -7,3 +7,37 @@
 
 # collectd monitoring, reporting back to the same collectd server as ubuntu/collectd.yml
 - import_playbook: openwrt/collectd.yml
+
+# Hostname, timezone, logging, NTP and (AP-only) LED configuration
+- import_playbook: openwrt/system.yml
+
+# uhttpd (LuCI web server) - no per-host variation; cert generation defaults
+# are deliberately left unmanaged since certs are injected via a separate
+# Let's Encrypt process
+- import_playbook: openwrt/uhttpd.yml
+
+# LuCI web UI settings - identical across all hosts, no per-host variation
+- import_playbook: openwrt/luci.yml
+
+# dropbear (SSH) - identical across all hosts, no per-host variation
+- import_playbook: openwrt/dropbear.yml
+
+# irqbalance - enabled on the router only
+- import_playbook: openwrt/irqbalance.yml
+
+# adblock - router only (the APs don't run adblock/dnsmasq)
+- import_playbook: openwrt/adblock.yml
+
+# banip - router only, same reasoning as adblock
+- import_playbook: openwrt/banip.yml
+
+# firewall - AP config is committed directly (identical, non-sensitive);
+# the router's zones/rules/port forwards are too revealing of the internal
+# network to commit even sanitised, so that content lives in secrets.yml
+- import_playbook: openwrt/firewall.yml
+
+# dhcp/dnsmasq/odhcpd - router vs. AP structure differs (the router runs
+# dnsmasq's DHCP server; APs relay to it), driven by group_vars; the
+# router's "config domain"/"config host" static lease entries (not yet
+# added) will live in router.yaml since they list real internal hostnames
+- import_playbook: openwrt/dhcp.yml

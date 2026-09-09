@@ -1,0 +1,20 @@
+---
+- hosts: openwrt
+  gather_facts: false
+  tasks:
+    - name: openwrt - Read router-only settings
+      include_vars:
+        file: ../router.yaml
+      when: "'router' in group_names"
+
+    - name: openwrt - Configure firewall
+      community.openwrt.template:
+        src: files/firewall.conf
+        dest: /etc/config/firewall
+      notify: openwrt - Restart firewall
+
+  handlers:
+    - name: openwrt - Restart firewall
+      community.openwrt.service:
+        name: firewall
+        state: restarted

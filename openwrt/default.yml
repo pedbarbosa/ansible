@@ -33,12 +33,3 @@
       community.openwrt.service:
         name: uhttpd
         state: restarted
-
-    - name: openwrt - Reminder
-      ansible.builtin.debug:
-        msg: "Reboot {{ inventory_hostname }} to confirm all packages installed successfully."
-
-    - name: openwrt - Reminder (router)
-      when: "'router' in group_names"
-      ansible.builtin.debug:
-        msg: "If busybox was updated, verify adblock's sort tool wasn't overwritten: opkg install coreutils-sort --force-reinstall"

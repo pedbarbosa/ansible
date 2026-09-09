@@ -149,6 +149,82 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   installed by `openwrt/default.yml` first). The collectd server address
   (`openwrt_collectd_server_host`) lives in `secrets.yml`, same as the
   router/AP addresses, since it's also a real network detail.
+- `openwrt/system.yml` (`/etc/config/system`) covers hostname, timezone,
+  logging, and NTP, all driven by `group_vars` (router vs. AP) same as the
+  playbooks above — plus AP-only LED sections, which are genuinely
+  per-physical-device rather than per-group. Those are keyed by a `profile`
+  field added to each `openwrt_ap_hosts` entry in `secrets.yml` (e.g.
+  `ap_dual_led`/`ap_wan_led`), which `openwrt/inventory.yml` adds as an
+  extra `add_host` group; the actual LED definitions live in a committed
+  `openwrt/group_vars/ap_<profile>.yml`. This indirection exists solely so
+  real AP names never need to appear in the repo as `host_vars/<name>.yml`
+  filenames — adding a new physical AP means adding/reusing a `profile` in
+  secrets and, if its hardware is new, a new `ap_<profile>.yml`.
+  `timezone`/`zonename` are also secrets (`openwrt_timezone`/
+  `openwrt_zonename`) even though they're low-sensitivity, per explicit
+  request rather than the IP/hostname reasoning above.
+- `openwrt/uhttpd.yml` (`/etc/config/uhttpd`) is a single static template
+  (`openwrt/files/uhttpd.conf`, no per-host variables) since the only
+  difference across the router/APs was the cert `defaults` section's `days`
+  value — and that section is dropped entirely rather than templated, since
+  these devices don't generate their own certs; Let's Encrypt certs are
+  injected via a separate cron process outside Ansible's management.
+- `openwrt/luci.yml` (`/etc/config/luci`) is likewise a single static
+  template (`openwrt/files/luci.conf`) — identical across the router and
+  both APs, no group/host variation at all. No restart handler: LuCI reads
+  this config live per-request rather than via a long-running service.
+- `openwrt/dropbear.yml` (`/etc/config/dropbear`) is also a single static
+  template (`openwrt/files/dropbear.conf`), identical across all hosts —
+  restarts `dropbear` on change, since (unlike LuCI) it's a long-running
+  daemon that needs to reload for e.g. a `Port` change to take effect.
+- `openwrt/adblock.yml` (`/etc/config/adblock`) targets `hosts: router`
+  directly (not `openwrt` gated by a `group_names` check) since it's the
+  only file so far that doesn't apply to the APs at all. `adb_mailreceiver`/
+  `adb_mailsender` are `admin@{{ domain }}`/`router@{{ domain }}`, reusing
+  the same `domain` secret as `ubuntu/collectd.yml` rather than adding a
+  new one, per explicit request.
+- `openwrt/banip.yml` (`/etc/config/banip`) is router-only (same `hosts:
+  router` / `domain`-secret reasoning as `openwrt/adblock.yml` above).
+- `openwrt/firewall.yml` (`/etc/config/firewall`) is the one file so far
+  split by content sensitivity rather than by host group: the AP zones are
+  identical/simple enough to commit directly in
+  `openwrt/files/firewall.conf` (a `{% if 'router' in group_names %}`
+  branch), but the router's actual zones/rules/port-forwards are too
+  revealing of the internal network to commit even sanitised — so that
+  entire file's content lives as a single `openwrt_router_firewall_config`
+  block-scalar in `router.yaml` (gitignored, `router.yaml.example` has the
+  format), read via a `when: "'router' in group_names"`-gated `include_vars`
+  task rather than `secrets.yml`. It's a separate file from `secrets.yml`
+  on purpose: `secrets.yml` covers individual private *values*
+  (IPs, hostnames) plugged into otherwise-committed templates, while
+  `router.yaml` covers a whole config *body* that itself describes the
+  network's structure and exposed services — different enough in kind, and
+  scoped to one host, that mixing it into `secrets.yml` (read by every
+  playbook) felt like the wrong place for it.
+- `openwrt/irqbalance.yml` (`/etc/config/irqbalance`) is enabled on the
+  router only and disabled on both APs, driven by `openwrt_irqbalance_enabled`
+  (`'router' in group_names`) in `group_vars/all.yml` — same
+  router-vs-AP branching pattern as `openwrt_log_size`/`openwrt_cronloglevel`
+  above rather than a separate `group_vars/router.yml` override, since it's
+  a single boolean rather than a router-only value with no AP equivalent.
+  The `luci-app-irqbalance` package (which provides the irqbalance binary +
+  init script) is already installed on all hosts via
+  `openwrt_packages_common`, so `openwrt/default.yml` needed no changes.
+
+- `openwrt/dhcp.yml` (`/etc/config/dhcp`) covers `dnsmasq`/`dhcp`/`odhcpd`
+  sections, branched on `'router' in group_names` inside
+  `openwrt/files/dhcp.conf` — the router runs the actual DHCP server (`lan`/
+  `iot`/`wan` sections, `authoritative`/`sequential_ip`/`nonegcache`), while
+  APs just relay to it (`list server '{{ openwrt_router_host }}'`, a single
+  `lan` section with `ra`/`dhcpv6`/`dhcpv4` all `server`). `domain` is the
+  same `domain` secret reused by `openwrt/adblock.yml`/`banip.yml`. Notifies
+  both `dnsmasq` and `odhcpd` restarts, since the one file configures both
+  daemons. The template also has an `openwrt_router_dhcp_extra` hook
+  (`default('')`, appended verbatim after `odhcpd` with a blank line before
+  it) for the router's `config domain`/`config host` static-lease entries —
+  not yet populated, but reserved so they can go straight into `router.yaml`
+  (same reasoning as `openwrt_router_firewall_config`: real internal
+  hostnames, too revealing to commit) without touching the template again.
 
 ## Gotchas learned the hard way
 

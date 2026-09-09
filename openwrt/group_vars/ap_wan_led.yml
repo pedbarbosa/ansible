@@ -1,0 +1,7 @@
+openwrt_leds:
+  - section: led_wan
+    name: wan
+    sysfs: "rgb:network"
+    trigger: netdev
+    mode: "link tx rx"
+    dev: wan

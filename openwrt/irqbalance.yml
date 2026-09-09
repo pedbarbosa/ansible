@@ -1,0 +1,15 @@
+---
+- hosts: openwrt
+  gather_facts: false
+  tasks:
+    - name: openwrt - Configure irqbalance
+      community.openwrt.template:
+        src: files/irqbalance.conf
+        dest: /etc/config/irqbalance
+      notify: openwrt - Restart irqbalance
+
+  handlers:
+    - name: openwrt - Restart irqbalance
+      community.openwrt.service:
+        name: irqbalance
+        state: restarted

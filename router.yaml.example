@@ -1,0 +1,27 @@
+---
+# Copy this file to router.yaml (gitignored) and fill in real values.
+# Never commit the real router.yaml.
+#
+# Holds router-only settings too revealing of the internal network to
+# commit even sanitised - unlike secrets.yml, which covers values that
+# are just private (IPs, hostnames), this covers whole config bodies
+# (zones, rules, port forwards) that describe the network's actual
+# structure and exposed services.
+
+# openwrt/firewall.yml (firewall.conf) - router only. The AP firewall
+# config is simple/identical enough to commit directly in
+# openwrt/files/firewall.conf; only the router's version lives here.
+# Indent content lines with tabs, matching real UCI file formatting.
+openwrt_router_firewall_config: |
+  config defaults
+      ....
+
+# openwrt/dhcp.yml (dhcp.conf) - router only. Reserved for the router's
+# "config domain"/"config host" static DHCP lease entries, which list
+# real internal hostnames. Appended verbatim after the odhcpd section;
+# leave unset (defaults to empty) until you have entries to add, e.g.:
+#
+# openwrt_router_dhcp_extra: |
+#   config domain 'example'
+#   	option name 'nas'
+#   	option ip '192.168.1.50'

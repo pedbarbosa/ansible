@@ -21,3 +21,13 @@ openwrt_collectd_dns_interfaces:
 openwrt_collectd_thermal_devices:
   - cooling_device0
   - cooling_device1
+
+# openwrt/system.yml
+openwrt_log_size_router: 1024
+openwrt_cronloglevel_router: 7
+
+openwrt_ntp_pool_servers:
+  - 0.openwrt.pool.ntp.org
+  - 1.openwrt.pool.ntp.org
+  - 2.openwrt.pool.ntp.org
+  - 3.openwrt.pool.ntp.org

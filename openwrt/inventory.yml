@@ -23,4 +23,5 @@
         groups:
           - openwrt
           - ap
+          - "{{ item.profile }}"
       loop: "{{ openwrt_ap_hosts }}"
