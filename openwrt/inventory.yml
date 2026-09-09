@@ -1,0 +1,26 @@
+---
+- name: Build OpenWrt inventory from secrets
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: openwrt - Read secrets from file
+      include_vars:
+        file: ../secrets.yml
+
+    - name: openwrt - Register router
+      add_host:
+        name: router
+        ansible_host: "{{ openwrt_router_host }}"
+        groups:
+          - openwrt
+          - router
+
+    - name: openwrt - Register APs
+      add_host:
+        name: "{{ item.name }}"
+        ansible_host: "{{ item.host }}"
+        groups:
+          - openwrt
+          - ap
+      loop: "{{ openwrt_ap_hosts }}"

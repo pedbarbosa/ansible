@@ -1,0 +1,27 @@
+ansible_user: root
+
+openwrt_packages_common:
+  - avahi-dbus-daemon
+  - collectd
+  - collectd-mod-cpu
+  - collectd-mod-df
+  - collectd-mod-dns
+  - collectd-mod-interface
+  - collectd-mod-load
+  - collectd-mod-memory
+  - collectd-mod-network
+  - collectd-mod-processes
+  - collectd-mod-uptime
+  - diffutils
+  - git
+  - git-http
+  - ip-bridge
+  - luci
+  - luci-app-irqbalance
+  - luci-ssl
+  - msmtp
+  - ncdu
+  - rsync
+  - tcpdump
+
+openwrt_packages: "{{ openwrt_packages_common + (openwrt_packages_router if 'router' in group_names else []) }}"

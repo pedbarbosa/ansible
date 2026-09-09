@@ -1,0 +1,6 @@
+---
+# Build the router/AP inventory from secrets.yml (real IPs/hostnames aren't committed)
+- import_playbook: openwrt/inventory.yml
+
+# Core OpenWrt packages, shared across the router and both APs
+- import_playbook: openwrt/default.yml

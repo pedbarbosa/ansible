@@ -17,6 +17,11 @@ server/workstation setup and a macOS workstation setup, one repo, run via
   them (e.g. `is_corporate` in `mac/group_vars/all.yml` depends on
   `personal_hostnames` from secrets), but the value only resolves in plays
   that load secrets first, due to Ansible's lazy variable evaluation.
+- Exception: connection vars like `ansible_host` are needed *before* Ansible
+  can reach a host, so they can't wait on an `include_vars` task inside the
+  play that targets it — see `openwrt/inventory.yml`'s `add_host` bootstrap
+  below for the pattern used when secret data has to become inventory, not
+  just task-level vars.
 
 ## Dry-run convention
 
@@ -73,6 +78,30 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   tooling). Merging those would mean threading OS conditionals through
   nearly every task for two playbooks that are conceptually different,
   not the same thing expressed twice.
+
+## OpenWrt playbooks (`openwrt.yml` / `openwrt/`)
+
+- No committed inventory file — `openwrt/inventory.yml` runs first (against
+  `localhost`), reads `openwrt_router_host`/`openwrt_ap_hosts` from
+  `secrets.yml`, and `add_host`s the router + APs into the `openwrt`/
+  `router`/`ap` groups at runtime. This keeps real IPs/hostnames out of the
+  repo without a second gitignored file alongside `secrets.yml`. `group_vars`
+  (`all.yml`/`router.yml`) still apply normally to hosts added this way.
+- Uses the `community.openwrt` collection (declared in `requirements.yml`), not
+  `ansible.builtin`/`community.general` modules — it's shell-based
+  (`community.openwrt.opkg`/`uci`/`service`/`file`/`command`, etc.) so it
+  works without Python installed on the router/APs.
+- Check-mode support varies per module, same "force `check_mode: false` only
+  for idempotent bootstrapping" rule as the mac/ubuntu gotcha above:
+  `community.openwrt.opkg`, `service`, and `file` support check mode fully
+  and are left alone; `community.openwrt.command` does not (`check_mode:
+  support: none`) and is skipped under `-C` unless forced. `openwrt/default.yml`
+  forces only the `wget`-based `opkg-upgrade` bootstrap (idempotent via
+  `creates:`) — the actual `opkg-upgrade -f` upgrade is left to skip during a
+  dry run since it's a real, non-idempotent action.
+- `community.openwrt.opkg`'s `name` argument is `type: str` only (no list
+  support like `ansible.builtin.apt`/`package`) — package lists in
+  `group_vars` are real YAML lists and get `| join(',')` at the point of use.
 
 ## Gotchas learned the hard way
 
