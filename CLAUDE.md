@@ -192,12 +192,12 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   branch), but the router's actual zones/rules/port-forwards are too
   revealing of the internal network to commit even sanitised — so that
   entire file's content lives as a single `openwrt_router_firewall_config`
-  block-scalar in `router.yaml` (gitignored, `router.yaml.example` has the
+  block-scalar in `router.yml` (gitignored, `router.yml.example` has the
   format), read via a `when: "'router' in group_names"`-gated `include_vars`
   task rather than `secrets.yml`. It's a separate file from `secrets.yml`
   on purpose: `secrets.yml` covers individual private *values*
   (IPs, hostnames) plugged into otherwise-committed templates, while
-  `router.yaml` covers a whole config *body* that itself describes the
+  `router.yml` covers a whole config *body* that itself describes the
   network's structure and exposed services — different enough in kind, and
   scoped to one host, that mixing it into `secrets.yml` (read by every
   playbook) felt like the wrong place for it.
@@ -222,7 +222,7 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   daemons. The template also has an `openwrt_router_dhcp_extra` hook
   (`default('')`, appended verbatim after `odhcpd` with a blank line before
   it) for the router's `config domain`/`config host` static-lease entries —
-  not yet populated, but reserved so they can go straight into `router.yaml`
+  not yet populated, but reserved so they can go straight into `router.yml`
   (same reasoning as `openwrt_router_firewall_config`: real internal
   hostnames, too revealing to commit) without touching the template again.
 

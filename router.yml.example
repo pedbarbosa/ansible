@@ -1,6 +1,6 @@
 ---
-# Copy this file to router.yaml (gitignored) and fill in real values.
-# Never commit the real router.yaml.
+# Copy this file to router.yml (gitignored) and fill in real values.
+# Never commit the real router.yml.
 #
 # Holds router-only settings too revealing of the internal network to
 # commit even sanitised - unlike secrets.yml, which covers values that

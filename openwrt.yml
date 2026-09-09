@@ -39,5 +39,5 @@
 # dhcp/dnsmasq/odhcpd - router vs. AP structure differs (the router runs
 # dnsmasq's DHCP server; APs relay to it), driven by group_vars; the
 # router's "config domain"/"config host" static lease entries (not yet
-# added) will live in router.yaml since they list real internal hostnames
+# added) will live in router.yml since they list real internal hostnames
 - import_playbook: openwrt/dhcp.yml

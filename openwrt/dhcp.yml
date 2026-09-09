@@ -4,7 +4,7 @@
   tasks:
     - name: openwrt - Read router-only settings
       include_vars:
-        file: ../router.yaml
+        file: ../router.yml
       when: "'router' in group_names"
 
     - name: openwrt - Configure dhcp
