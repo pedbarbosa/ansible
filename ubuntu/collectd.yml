@@ -60,11 +60,6 @@
       src: files/collectd.conf.d/smart.conf
       dest: /etc/collectd/collectd.conf.d
     notify: Restart collectd
-  - name: Configure collectd thermal module
-    template:
-      src: files/collectd.conf.d/thermal.conf
-      dest: /etc/collectd/collectd.conf.d
-    notify: Restart collectd
   - name: Configure collectd unixsock module
     template:
       src: files/collectd.conf.d/unixsock.conf
