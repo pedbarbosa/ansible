@@ -1,0 +1,15 @@
+---
+- hosts: openwrt
+  gather_facts: false
+  tasks:
+    - name: openwrt - Configure collectd
+      community.openwrt.template:
+        src: files/collectd.conf
+        dest: /etc/config/collectd
+      notify: openwrt - Restart collectd
+
+  handlers:
+    - name: openwrt - Restart collectd
+      community.openwrt.service:
+        name: collectd
+        state: restarted

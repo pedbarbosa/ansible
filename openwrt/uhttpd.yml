@@ -1,0 +1,15 @@
+---
+- hosts: openwrt
+  gather_facts: false
+  tasks:
+    - name: openwrt - Configure uhttpd
+      community.openwrt.template:
+        src: files/uhttpd.conf
+        dest: /etc/config/uhttpd
+      notify: openwrt - Restart uhttpd
+
+  handlers:
+    - name: openwrt - Restart uhttpd
+      community.openwrt.service:
+        name: uhttpd
+        state: restarted

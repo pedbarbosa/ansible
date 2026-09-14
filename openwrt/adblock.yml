@@ -1,0 +1,15 @@
+---
+- hosts: router
+  gather_facts: false
+  tasks:
+    - name: openwrt - Configure adblock
+      community.openwrt.template:
+        src: files/adblock.conf
+        dest: /etc/config/adblock
+      notify: openwrt - Restart adblock
+
+  handlers:
+    - name: openwrt - Restart adblock
+      community.openwrt.service:
+        name: adblock
+        state: restarted

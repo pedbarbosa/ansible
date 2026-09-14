@@ -1,0 +1,25 @@
+# Copy this file to router-firewall.conf (gitignored) and fill in real
+# values. Never commit the real router-firewall.conf.
+#
+# Read verbatim by openwrt/firewall.yml (via a `lookup('file', ...)` in
+# openwrt/files/firewall.conf) as the router's entire /etc/config/firewall
+# body - too revealing of the internal network (zones, rules, port
+# forwards) to commit even sanitised, unlike secrets.yml which only covers
+# individual private values (IPs, hostnames).
+#
+# Plain UCI syntax, copied as-is from the device (or from what LuCI itself
+# writes back) - zero indent on `config` lines, a single tab on `option`/
+# `list` lines. No YAML, so there's no indentation translation step to get
+# wrong or to clash with LuCI's own formatting.
+
+config defaults
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+
+config zone
+	option name 'lan'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'ACCEPT'
+	list network 'lan'

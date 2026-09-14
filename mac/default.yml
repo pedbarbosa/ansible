@@ -39,7 +39,7 @@
         extra_args: --break-system-packages
     - name: slack-notify - Read secrets from file
       include_vars:
-        file: ../secrets.yml
+        file: ../local/secrets.yml
     - name: slack-notify - Ensure config directory exists
       become: yes
       file:

@@ -1,0 +1,15 @@
+---
+- hosts: openwrt
+  gather_facts: false
+  tasks:
+    - name: openwrt - Configure dropbear
+      community.openwrt.template:
+        src: files/dropbear.conf
+        dest: /etc/config/dropbear
+      notify: openwrt - Restart dropbear
+
+  handlers:
+    - name: openwrt - Restart dropbear
+      community.openwrt.service:
+        name: dropbear
+        state: restarted

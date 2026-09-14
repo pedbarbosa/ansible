@@ -1,0 +1,35 @@
+---
+- hosts: openwrt
+  gather_facts: false
+  pre_tasks:
+    - name: openwrt - Update opkg package lists
+      community.openwrt.opkg:
+        name: opkg
+        update_cache: true
+  roles:
+    - community.openwrt.init
+  tasks:
+    - name: openwrt - Ensure opkg-upgrade helper is installed
+      community.openwrt.command:
+        cmd: wget -O /usr/sbin/opkg-upgrade https://raw.githubusercontent.com/tavinus/opkg-upgrade/master/opkg-upgrade.sh
+        creates: /usr/sbin/opkg-upgrade
+      check_mode: false
+
+    - name: openwrt - Ensure opkg-upgrade helper is executable
+      community.openwrt.file:
+        path: /usr/sbin/opkg-upgrade
+        mode: "0755"
+
+    - name: openwrt - Upgrade installed packages
+      community.openwrt.command:
+        cmd: opkg-upgrade -f
+
+    - name: openwrt - Install packages
+      community.openwrt.opkg:
+        name: "{{ openwrt_packages | join(',') }}"
+        state: present
+
+    - name: openwrt - Restart uhttpd
+      community.openwrt.service:
+        name: uhttpd
+        state: restarted

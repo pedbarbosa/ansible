@@ -1,0 +1,16 @@
+# Copy this file to router-dhcp-extra.conf (gitignored) and fill in real
+# values. Never commit the real router-dhcp-extra.conf.
+#
+# Optional - read verbatim by openwrt/dhcp.yml (via a `lookup('file', ...,
+# errors='ignore')` in openwrt/files/dhcp.conf) and appended after the
+# `odhcpd` section of the router's /etc/config/dhcp. Reserved for the
+# router's `config domain`/`config host` static DHCP lease entries, which
+# list real internal hostnames. Leave the file absent until you have
+# entries to add - a missing file renders as nothing, no placeholder
+# needed.
+#
+# Plain UCI syntax, same formatting rules as router-firewall.conf.example:
+#
+# config domain 'example'
+# 	option name 'nas'
+# 	option ip '192.168.1.50'

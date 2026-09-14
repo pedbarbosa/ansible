@@ -11,7 +11,7 @@
 
     - name: pms - Read secrets from file
       include_vars:
-        file: ../secrets.yml
+        file: ../local/secrets.yml
 
     - name: pms - Get the latest snapraid release
       uri:
