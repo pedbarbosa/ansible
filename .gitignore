@@ -5,11 +5,11 @@
 # Ansible retries
 *.retry
 
-# Secrets file
-/secrets.yml
-
-# Router-only settings too revealing of the internal network to commit
-/router.yml
+# Not-committed critical config: real secrets + router-only config bodies
+# too revealing of the internal network to commit even sanitised
+/local/secrets.yml
+/local/router-firewall.conf
+/local/router-dhcp-extra.conf
 
 # Testing
 test/

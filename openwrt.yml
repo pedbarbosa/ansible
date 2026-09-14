@@ -1,5 +1,5 @@
 ---
-# Build the router/AP inventory from secrets.yml (real IPs/hostnames aren't committed)
+# Build the router/AP inventory from local/secrets.yml (real IPs/hostnames aren't committed)
 - import_playbook: openwrt/inventory.yml
 
 # Core OpenWrt packages, shared across the router and both APs
@@ -33,11 +33,13 @@
 
 # firewall - AP config is committed directly (identical, non-sensitive);
 # the router's zones/rules/port forwards are too revealing of the internal
-# network to commit even sanitised, so that content lives in secrets.yml
+# network to commit even sanitised, so that content lives in
+# local/router-firewall.conf
 - import_playbook: openwrt/firewall.yml
 
 # dhcp/dnsmasq/odhcpd - router vs. AP structure differs (the router runs
 # dnsmasq's DHCP server; APs relay to it), driven by group_vars; the
 # router's "config domain"/"config host" static lease entries (not yet
-# added) will live in router.yml since they list real internal hostnames
+# added) will live in local/router-dhcp-extra.conf since they list real
+# internal hostnames
 - import_playbook: openwrt/dhcp.yml

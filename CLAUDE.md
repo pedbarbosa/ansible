@@ -6,24 +6,28 @@ server/workstation setup and a macOS workstation setup, one repo, run via
 
 ## Secrets
 
-- `secrets.yml` is gitignored and must never be created or committed by an
-  assistant — it holds real host/user-specific values (hostnames, webhook
-  URLs, mount paths, etc).
-- `secrets.yml.example` is the canonical list of every expected key. Each
-  entry is commented with the playbook/file(s) that consume it. When a
+- `local/` holds every not-committed-but-critical config file: real
+  secrets and router-only config bodies. Nothing an assistant creates
+  should ever be written into it except by copying a `.example` file.
+- `local/secrets.yml` is gitignored and must never be created or committed
+  by an assistant — it holds real host/user-specific values (hostnames,
+  webhook URLs, mount paths, etc).
+- `local/secrets.yml.example` is the canonical list of every expected key.
+  Each entry is commented with the playbook/file(s) that consume it. When a
   change introduces a new secret-derived variable, update this file too.
 - For `ubuntu`/`mac`, vars sourced from secrets are only available in plays
-  that explicitly run an `include_vars: ../secrets.yml` task — group_vars
-  files can reference them (e.g. `is_corporate` in `mac/group_vars/all.yml`
-  depends on `personal_hostnames` from secrets), but the value only resolves
-  in plays that load secrets first, due to Ansible's lazy variable
-  evaluation.
+  that explicitly run an `include_vars: ../local/secrets.yml` task —
+  group_vars files can reference them (e.g. `is_corporate` in
+  `mac/group_vars/all.yml` depends on `personal_hostnames` from secrets),
+  but the value only resolves in plays that load secrets first, due to
+  Ansible's lazy variable evaluation.
 - `openwrt` is the exception: `openwrt/group_vars/all/secrets.yml` is a
-  symlink to `../../../secrets.yml`, so it's auto-loaded by Ansible's normal
-  group_vars mechanism for every host in the play — no `include_vars` task
-  needed in any `openwrt/*.yml` playbook. This only works because every
-  `openwrt` play lives in a file under `openwrt/`, which is what fixes the
-  group_vars lookup's base directory to `openwrt/group_vars/`.
+  symlink to `../../../local/secrets.yml`, so it's auto-loaded by Ansible's
+  normal group_vars mechanism for every host in the play — no
+  `include_vars` task needed in any `openwrt/*.yml` playbook. This only
+  works because every `openwrt` play lives in a file under `openwrt/`,
+  which is what fixes the group_vars lookup's base directory to
+  `openwrt/group_vars/`.
 - Exception: connection vars like `ansible_host` are needed *before* Ansible
   can reach a host, so they can't wait on a play-level var (`include_vars`
   or group_vars) to resolve inside the play that targets it — see
@@ -90,10 +94,11 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
 
 - No committed inventory file — `openwrt/inventory.yml` runs first (against
   `localhost`), reads `openwrt_router_host`/`openwrt_ap_hosts` from
-  `secrets.yml` (auto-loaded, see `## Secrets` above — no `include_vars`
-  needed even here), and `add_host`s the router + APs into the `openwrt`/
-  `router`/`ap` groups at runtime. This keeps real IPs/hostnames out of the
-  repo without a second gitignored file alongside `secrets.yml`. `group_vars`
+  `local/secrets.yml` (auto-loaded, see `## Secrets` above — no
+  `include_vars` needed even here), and `add_host`s the router + APs into
+  the `openwrt`/`router`/`ap` groups at runtime. This keeps real
+  IPs/hostnames out of the repo without a second gitignored file alongside
+  `local/secrets.yml`. `group_vars`
   (`all/`, `router.yml`) still apply normally to hosts added this way.
   - The router's registered hostname is `gateway`, not `router` — Ansible
     warns ("Found both group and host with same name") if a host is added
@@ -128,7 +133,7 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   itself plus SSH/sudoers for the ubuntu.yml/mac.yml localhost targets, and
   deliberately doesn't touch openwrt.yml (the router/APs aren't the machine
   running Ansible). Install `requirements.yml` manually, same one-time step
-  as copying `secrets.yml.example`.
+  as copying `local/secrets.yml.example`.
 - When bumping the version pin in `requirements.yml`, check the collection's
   actual GitHub *tags/releases* (or `galaxy.yml` at that tag), not the
   version in its `main` branch's `galaxy.yml` — `main` bumps the version
@@ -155,13 +160,13 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   `openwrt_packages_common`/`openwrt_packages_router` split above — keep
   both splits in sync (a collectd plugin needs its `collectd-mod-*` package
   installed by `openwrt/default.yml` first). The collectd server address
-  (`openwrt_collectd_server_host`) lives in `secrets.yml`, same as the
+  (`openwrt_collectd_server_host`) lives in `local/secrets.yml`, same as the
   router/AP addresses, since it's also a real network detail.
 - `openwrt/system.yml` (`/etc/config/system`) covers hostname, timezone,
   logging, and NTP, all driven by `group_vars` (router vs. AP) same as the
   playbooks above — plus AP-only LED sections, which are genuinely
   per-physical-device rather than per-group. Those are keyed by a `profile`
-  field added to each `openwrt_ap_hosts` entry in `secrets.yml` (e.g.
+  field added to each `openwrt_ap_hosts` entry in `local/secrets.yml` (e.g.
   `ap_dual_led`/`ap_wan_led`), which `openwrt/inventory.yml` adds as an
   extra `add_host` group; the actual LED definitions live in a committed
   `openwrt/group_vars/ap_<profile>.yml`. This indirection exists solely so
@@ -199,16 +204,22 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   `openwrt/files/firewall.conf` (a `{% if 'router' in group_names %}`
   branch), but the router's actual zones/rules/port-forwards are too
   revealing of the internal network to commit even sanitised — so that
-  entire file's content lives as a single `openwrt_router_firewall_config`
-  block-scalar in `router.yml` (gitignored, `router.yml.example` has the
-  format), read via a `when: "'router' in group_names"`-gated `include_vars`
-  task rather than `secrets.yml`. It's a separate file from `secrets.yml`
-  on purpose: `secrets.yml` covers individual private *values*
-  (IPs, hostnames) plugged into otherwise-committed templates, while
-  `router.yml` covers a whole config *body* that itself describes the
-  network's structure and exposed services — different enough in kind, and
-  scoped to one host, that mixing it into `secrets.yml` (read by every
-  playbook) felt like the wrong place for it.
+  entire file's content lives verbatim in `local/router-firewall.conf`
+  (gitignored, `local/router-firewall.conf.example` has the format), pulled
+  in with `{{ lookup('file', '../local/router-firewall.conf') }}` inside
+  the `{% if 'router' in group_names %}` branch. It's a plain UCI text file
+  rather than a YAML var on purpose, for two reasons: it's a separate
+  concern from `local/secrets.yml` (which covers individual private
+  *values* —
+  IPs, hostnames — plugged into otherwise-committed templates, whereas this
+  is a whole config *body* describing the network's structure and exposed
+  services), and — the bigger reason — a YAML block scalar forces every
+  line to carry both the YAML indent *and* the real UCI tab, which drifted
+  out of sync with what LuCI itself writes back to the device (LuCI
+  regenerates these files with zero indent on `config` lines and exactly
+  one tab on `option`/`list` lines). A flat file holding raw UCI text can
+  be copied in from the device (or from LuCI's own output) with no
+  translation step, so it can't drift.
 - `openwrt/irqbalance.yml` (`/etc/config/irqbalance`) is enabled on the
   router only and disabled on both APs, driven by `openwrt_irqbalance_enabled`
   (`'router' in group_names`) in `group_vars/all.yml` — same
@@ -227,12 +238,15 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   `lan` section with `ra`/`dhcpv6`/`dhcpv4` all `server`). `domain` is the
   same `domain` secret reused by `openwrt/adblock.yml`/`banip.yml`. Notifies
   both `dnsmasq` and `odhcpd` restarts, since the one file configures both
-  daemons. The template also has an `openwrt_router_dhcp_extra` hook
-  (`default('')`, appended verbatim after `odhcpd` with a blank line before
-  it) for the router's `config domain`/`config host` static-lease entries —
-  not yet populated, but reserved so they can go straight into `router.yml`
-  (same reasoning as `openwrt_router_firewall_config`: real internal
-  hostnames, too revealing to commit) without touching the template again.
+  daemons. The template also has a `local/router-dhcp-extra.conf` hook
+  (read via `lookup('file', ..., errors='ignore')`, so a missing file just
+  renders as empty — appended verbatim after `odhcpd` with a blank line
+  before it) for the router's `config domain`/`config host` static-lease
+  entries — not yet populated, but reserved so they can go straight into
+  that file (same reasoning as `local/router-firewall.conf`: real internal
+  hostnames, too
+  revealing to commit, and plain UCI text so there's no YAML-indentation
+  drift against what LuCI writes) without touching the template again.
 
 ## Gotchas learned the hard way
 

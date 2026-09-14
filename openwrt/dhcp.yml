@@ -2,11 +2,6 @@
 - hosts: openwrt
   gather_facts: false
   tasks:
-    - name: openwrt - Read router-only settings
-      include_vars:
-        file: ../router.yml
-      when: "'router' in group_names"
-
     - name: openwrt - Configure dhcp
       community.openwrt.template:
         src: files/dhcp.conf

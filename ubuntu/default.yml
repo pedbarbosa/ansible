@@ -74,7 +74,7 @@
 
     - name: slack-notify - Read secrets from file
       include_vars:
-        file: ../secrets.yml
+        file: ../local/secrets.yml
 
     - name: slack-notify - Ensure config directory exists
       file:
