@@ -23,7 +23,7 @@ openwrt_collectd_thermal_devices:
   - cooling_device1
 
 # openwrt/system.yml
-openwrt_log_size_router: 1024
+openwrt_log_size_router: 16384
 openwrt_cronloglevel_router: 7
 
 openwrt_ntp_pool_servers:
