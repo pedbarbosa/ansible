@@ -9,7 +9,7 @@ Personal Ansible configuration for provisioning and configuring machines — an 
 - `mac.yml` / `mac/` — playbooks for macOS: base packages (via Homebrew), `.gitconfig`, Python, Ruby, Vim, and Zsh.
 - `openwrt.yml` / `openwrt/` — playbooks for the OpenWrt router + APs: package management (upgrade + shared/router-only package sets), `collectd` monitoring, `/etc/config/system` (hostname, timezone, logging, NTP, AP LEDs), `/etc/config/uhttpd` (LuCI web server; cert generation excluded — certs are injected via a separate Let's Encrypt cron process), `/etc/config/luci` (LuCI web UI settings, identical across all hosts), `/etc/config/dropbear` (SSH daemon, identical across all hosts), `/etc/config/irqbalance` (enabled on the router only), `/etc/config/adblock`/`/etc/config/banip` (router only), `/etc/config/firewall` (AP zones committed directly; the router's zones/rules/port-forwards live in `router.yml` since they're too revealing to commit even sanitised), and `/etc/config/dhcp` (dnsmasq/odhcpd; router-vs-AP structure driven by `group_vars`, with a `router.yml` hook reserved for the router's static DHCP leases), via the `community.openwrt` collection. Individual configuration (VLANs, wifi) will follow.
 - `files/` — shared assets deployed on both platforms (`vimrc`, `zshrc.j2`, and the `slack-notify` script installed to `/usr/local/bin/slack-notify` for posting messages to a Slack incoming webhook).
-- `secrets.yml` — **not committed** (see `.gitignore`); holds host/user-specific values referenced by several playbooks (e.g. `main_user_account` for Zsh/Samba, `collectd` server settings, the `slack_notify_webhook_url` used by `default.yml` on both platforms, and the router/AP addresses used by `openwrt/inventory.yml`). See `secrets.yml.example` for the full list of expected keys and their format — copy it to `secrets.yml` and fill in real values before running playbooks that `include_vars` it.
+- `secrets.yml` — **not committed** (see `.gitignore`); holds host/user-specific values referenced by several playbooks (e.g. `main_user_account` for Zsh/Samba, `collectd` server settings, the `slack_notify_webhook_url` used by `default.yml` on both platforms, and the router/AP addresses used by `openwrt/inventory.yml`). See `secrets.yml.example` for the full list of expected keys and their format — copy it to `secrets.yml` and fill in real values before running playbooks that read it (via `include_vars` for `ubuntu`/`mac`; auto-loaded for `openwrt` via a `group_vars/all/secrets.yml` symlink).
 - `router.yml` — **not committed** (see `.gitignore`); holds router-only config bodies too revealing of the internal network to commit even sanitised (currently just `openwrt_router_firewall_config`, read by `openwrt/firewall.yml`). Separate from `secrets.yml` since it's whole config bodies rather than individual private values — see `router.yml.example` for the format.
 
 ## Usage
@@ -40,3 +40,10 @@ ansible-playbook -v openwrt.yml    # apply
 Hardware that differs per-AP (currently just LEDs, in `openwrt/system.yml`) is selected by a `profile` field on each `openwrt_ap_hosts` entry in `secrets.yml`, matched against `openwrt/group_vars/ap_<profile>.yml` — this keeps real AP names out of the repo while still letting each physical device get its own config.
 
 `openwrt/firewall.yml` also needs `router.yml` (copy `router.yml.example` and fill it in) — the router's actual firewall rules are kept out of the repo entirely, separately from `secrets.yml`.
+
+To run a single OpenWrt config playbook instead of the full `openwrt.yml` chain, pass `inventory.yml` first — it's what builds the router/AP hosts for that run, so `dhcp.yml` (etc.) on its own would match no hosts:
+
+```
+ansible-playbook -CD openwrt/inventory.yml openwrt/dhcp.yml   # dry run
+ansible-playbook -v openwrt/inventory.yml openwrt/dhcp.yml    # apply
+```

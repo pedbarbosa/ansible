@@ -4,10 +4,6 @@
   connection: local
   gather_facts: false
   tasks:
-    - name: openwrt - Read secrets from file
-      include_vars:
-        file: ../secrets.yml
-
     - name: openwrt - Register router
       add_host:
         name: gateway

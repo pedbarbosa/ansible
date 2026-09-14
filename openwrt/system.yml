@@ -2,10 +2,6 @@
 - hosts: openwrt
   gather_facts: false
   tasks:
-    - name: openwrt - Read secrets from file
-      include_vars:
-        file: ../secrets.yml
-
     - name: openwrt - Configure system
       community.openwrt.template:
         src: files/system.conf

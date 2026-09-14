@@ -12,16 +12,23 @@ server/workstation setup and a macOS workstation setup, one repo, run via
 - `secrets.yml.example` is the canonical list of every expected key. Each
   entry is commented with the playbook/file(s) that consume it. When a
   change introduces a new secret-derived variable, update this file too.
-- Vars sourced from secrets are only available in plays that explicitly run
-  an `include_vars: ../secrets.yml` task — group_vars files can reference
-  them (e.g. `is_corporate` in `mac/group_vars/all.yml` depends on
-  `personal_hostnames` from secrets), but the value only resolves in plays
-  that load secrets first, due to Ansible's lazy variable evaluation.
+- For `ubuntu`/`mac`, vars sourced from secrets are only available in plays
+  that explicitly run an `include_vars: ../secrets.yml` task — group_vars
+  files can reference them (e.g. `is_corporate` in `mac/group_vars/all.yml`
+  depends on `personal_hostnames` from secrets), but the value only resolves
+  in plays that load secrets first, due to Ansible's lazy variable
+  evaluation.
+- `openwrt` is the exception: `openwrt/group_vars/all/secrets.yml` is a
+  symlink to `../../../secrets.yml`, so it's auto-loaded by Ansible's normal
+  group_vars mechanism for every host in the play — no `include_vars` task
+  needed in any `openwrt/*.yml` playbook. This only works because every
+  `openwrt` play lives in a file under `openwrt/`, which is what fixes the
+  group_vars lookup's base directory to `openwrt/group_vars/`.
 - Exception: connection vars like `ansible_host` are needed *before* Ansible
-  can reach a host, so they can't wait on an `include_vars` task inside the
-  play that targets it — see `openwrt/inventory.yml`'s `add_host` bootstrap
-  below for the pattern used when secret data has to become inventory, not
-  just task-level vars.
+  can reach a host, so they can't wait on a play-level var (`include_vars`
+  or group_vars) to resolve inside the play that targets it — see
+  `openwrt/inventory.yml`'s `add_host` bootstrap below for the pattern used
+  when secret data has to become inventory, not just task-level vars.
 
 ## Dry-run convention
 
@@ -83,10 +90,11 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
 
 - No committed inventory file — `openwrt/inventory.yml` runs first (against
   `localhost`), reads `openwrt_router_host`/`openwrt_ap_hosts` from
-  `secrets.yml`, and `add_host`s the router + APs into the `openwrt`/
+  `secrets.yml` (auto-loaded, see `## Secrets` above — no `include_vars`
+  needed even here), and `add_host`s the router + APs into the `openwrt`/
   `router`/`ap` groups at runtime. This keeps real IPs/hostnames out of the
   repo without a second gitignored file alongside `secrets.yml`. `group_vars`
-  (`all.yml`/`router.yml`) still apply normally to hosts added this way.
+  (`all/`, `router.yml`) still apply normally to hosts added this way.
   - The router's registered hostname is `gateway`, not `router` — Ansible
     warns ("Found both group and host with same name") if a host is added
     to a group sharing its exact name. The `router` *group* name stays as

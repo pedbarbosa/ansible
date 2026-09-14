@@ -6,10 +6,10 @@
 *.retry
 
 # Secrets file
-secrets.yml
+/secrets.yml
 
 # Router-only settings too revealing of the internal network to commit
-router.yml
+/router.yml
 
 # Testing
 test/
