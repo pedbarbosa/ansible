@@ -66,6 +66,15 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
     task is also forced with `check_mode: false` so the download
     actually happens.
 
+## Agent execution constraints
+
+- Never run `ansible-playbook` yourself — not even a check-mode/dry-run
+  (`-C`/`-CD`, `run.sh`'s default). The router and APs aren't reachable from
+  this environment, so any invocation just fails or hangs; it also isn't
+  your call to make against live network gear. Prepare/edit the playbooks
+  and templates, then hand off the exact command for the user to run on a
+  host that actually has access.
+
 ## Shared files across mac/ubuntu
 
 - When a file is identical (or near-identical) between `mac/` and `ubuntu/`
@@ -233,12 +242,25 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
 - `openwrt/dhcp.yml` (`/etc/config/dhcp`) covers `dnsmasq`/`dhcp`/`odhcpd`
   sections, branched on `'router' in group_names` inside
   `openwrt/files/dhcp.conf` — the router runs the actual DHCP server (`lan`/
-  `iot`/`wan` sections, `authoritative`/`sequential_ip`/`nonegcache`), while
-  APs just relay to it (`list server '{{ openwrt_router_host }}'`, a single
-  `lan` section with `ra`/`dhcpv6`/`dhcpv4` all `server`). `domain` is the
-  same `domain` secret reused by `openwrt/adblock.yml`/`banip.yml`. Notifies
-  both `dnsmasq` and `odhcpd` restarts, since the one file configures both
-  daemons. The template also has a `local/router-dhcp-extra.conf` hook
+  `iot`/`wan` sections, `authoritative`/`sequential_ip`/`nonegcache`) and is
+  the only host authorised to answer DNS or DHCP. APs are fully passive:
+  `option port '0'` disables dnsmasq's own resolver (it previously marked
+  `/lan/` as a strictly-local domain via `option local`, which made it
+  NXDOMAIN local hostnames it had no records for instead of forwarding them —
+  the router is now the sole DNS answerer), and both `lan` and `iot` sections
+  carry `ignore '1'`/`ra 'disabled'`/`dhcpv6 'disabled'` so DHCP for both
+  VLANs is fully delegated to the router and IPv6 RA/DHCPv6 stay off
+  network-wide (APs no longer run their own independent
+  `ra`/`dhcpv6`/`ra_slaac` server as they did before). `domain` is the
+  same `domain` secret reused by `openwrt/adblock.yml`/`banip.yml`. Since the
+  template neuters both daemons everywhere except the router's dnsmasq,
+  `openwrt/dhcp.yml` also disables the now-useless services outright rather
+  than leaving do-nothing daemons running: `odhcpd` is stopped and disabled
+  unconditionally on every host (IPv6/`maindhcp` are off everywhere, so it
+  has nothing left to do anywhere), and `dnsmasq` is stopped and disabled on
+  APs specifically (`'router' not in group_names`) — the restart handler for
+  `dnsmasq` is likewise gated to `'router' in group_names` only. The template
+  also has a `local/router-dhcp-extra.conf` hook
   (read via `lookup('file', ..., errors='ignore')`, so a missing file just
   renders as empty — appended verbatim after `odhcpd` with a blank line
   before it) for the router's `config domain`/`config host` static-lease
@@ -247,6 +269,30 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   hostnames, too
   revealing to commit, and plain UCI text so there's no YAML-indentation
   drift against what LuCI writes) without touching the template again.
+- `openwrt/network.yml` (`/etc/config/network`) breaks from every other
+  OpenWrt playbook's structure: instead of one `group_names`-branched
+  template, each device profile gets its own plain file under
+  `openwrt/files/` (`network.router.conf`/`network.ap_dual_led.conf`/
+  `network.ap_wan_led.conf`, three separate `hosts:` plays targeting the
+  `router`/`ap_dual_led`/`ap_wan_led` groups) because the physical
+  port/switch layout genuinely differs per hardware model — the
+  `ap_dual_led` profile trunks a single `eth0`, `ap_wan_led` repurposes its
+  `wan` port into the VLAN trunk, the router fans out across 5 ports — not
+  just router-vs-AP the way `dhcp.conf`/`firewall.conf` do. It targets the
+  same `ap_dual_led`/`ap_wan_led` profile groups `openwrt/system.yml` uses
+  for LEDs, never a specific AP's inventory hostname — that name is
+  whatever's set in `local/secrets.yml`'s `openwrt_ap_hosts[].name` and must
+  never be hardcoded here. `host` on
+  each `openwrt_ap_hosts` entry (and `openwrt_router_host`) now does double
+  duty as `ansible_host` *and* the `lan` interface's `ipaddr` in these
+  templates, so it must be the device's real static LAN IP, not just
+  whatever address ansible happens to reach it on — keep that in sync if
+  either ever changes. IPv6 is disabled network-wide via `option ipv6 '0'`
+  on every bridge `device` section (the router's `wan` interface disables it
+  too, since it's PPPoE not a bridge). No restart handler, unlike every
+  other playbook here: a bad bridge/VLAN/IP push can sever SSH/LuCI access
+  to the device outright, so this only ever stages the file — apply by
+  hand, one device at a time, with console/physical access on standby.
 
 ## Gotchas learned the hard way
 

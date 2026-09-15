@@ -5,6 +5,12 @@
 # Core OpenWrt packages, shared across the router and both APs
 - import_playbook: openwrt/default.yml
 
+# /etc/config/network - VLANs/bridges/WAN, one template per device (see
+# openwrt/network.yml for why). No restart handler: apply by hand with
+# console/physical access on standby, since a bad push here can sever
+# remote access to the device entirely.
+- import_playbook: openwrt/network.yml
+
 # collectd monitoring, reporting back to the same collectd server as ubuntu/collectd.yml
 - import_playbook: openwrt/collectd.yml
 
