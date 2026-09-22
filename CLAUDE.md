@@ -234,16 +234,6 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   one tab on `option`/`list` lines). A flat file holding raw UCI text can
   be copied in from the device (or from LuCI's own output) with no
   translation step, so it can't drift.
-- `openwrt/irqbalance.yml` (`/etc/config/irqbalance`) is enabled on the
-  router only and disabled on both APs, driven by `openwrt_irqbalance_enabled`
-  (`'router' in group_names`) in `group_vars/all.yml` — same
-  router-vs-AP branching pattern as `openwrt_log_size`/`openwrt_cronloglevel`
-  above rather than a separate `group_vars/router.yml` override, since it's
-  a single boolean rather than a router-only value with no AP equivalent.
-  The `luci-app-irqbalance` package (which provides the irqbalance binary +
-  init script) is already installed on all hosts via
-  `openwrt_packages_common`, so `openwrt/default.yml` needed no changes.
-
 - `openwrt/dhcp.yml` (`/etc/config/dhcp`) covers `dnsmasq`/`dhcp`/`odhcpd`
   sections, branched on `'router' in group_names` inside
   `openwrt/files/dhcp.conf` — the router runs the actual DHCP server (`lan`/

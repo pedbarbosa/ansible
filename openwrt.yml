@@ -28,9 +28,6 @@
 # dropbear (SSH) - identical across all hosts, no per-host variation
 - import_playbook: openwrt/dropbear.yml
 
-# irqbalance - enabled on the router only
-- import_playbook: openwrt/irqbalance.yml
-
 # adblock - router only (the APs don't run adblock/dnsmasq)
 - import_playbook: openwrt/adblock.yml
 

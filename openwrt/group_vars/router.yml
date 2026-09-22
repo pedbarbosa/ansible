@@ -1,7 +1,5 @@
 openwrt_packages_router:
-  - adblock
   - luci-app-adblock
-  - banip
   - luci-app-banip
   - collectd-mod-conntrack
   - collectd-mod-dns

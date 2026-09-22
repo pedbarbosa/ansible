@@ -16,9 +16,6 @@ openwrt_packages_common:
   - git
   - git-http
   - ip-bridge
-  - luci
-  - luci-app-irqbalance
-  - luci-ssl
   - msmtp
   - ncdu
   - rsync
@@ -56,6 +53,3 @@ openwrt_log_port: 514
 openwrt_log_size: "{{ openwrt_log_size_router if 'router' in group_names else 64 }}"
 openwrt_cronloglevel: "{{ openwrt_cronloglevel_router if 'router' in group_names else 5 }}"
 openwrt_leds: []
-
-# openwrt/irqbalance.yml
-openwrt_irqbalance_enabled: "{{ 'router' in group_names }}"
