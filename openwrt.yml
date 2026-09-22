@@ -28,11 +28,19 @@
 # dropbear (SSH) - identical across all hosts, no per-host variation
 - import_playbook: openwrt/dropbear.yml
 
+# attendedsysupgrade (ASU/owut client) - identical across all hosts, no
+# per-host variation
+- import_playbook: openwrt/attendedsysupgrade.yml
+
 # adblock - router only (the APs don't run adblock/dnsmasq)
 - import_playbook: openwrt/adblock.yml
 
 # banip - router only, same reasoning as adblock
 - import_playbook: openwrt/banip.yml
+
+# root crontab (daily adblock/banip reloads) - router only, same reasoning as
+# adblock/banip
+- import_playbook: openwrt/cron.yml
 
 # firewall - AP config is committed directly (identical, non-sensitive);
 # the router's zones/rules/port forwards are too revealing of the internal

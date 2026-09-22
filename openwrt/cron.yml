@@ -1,0 +1,17 @@
+---
+# root crontab - router only (adblock/banip periodic reloads; the APs don't
+# run either service)
+- hosts: router
+  gather_facts: false
+  tasks:
+    - name: openwrt - Configure root crontab
+      community.openwrt.template:
+        src: files/crontab.root
+        dest: /etc/crontabs/root
+      notify: openwrt - Restart cron
+
+  handlers:
+    - name: openwrt - Restart cron
+      community.openwrt.service:
+        name: cron
+        state: restarted

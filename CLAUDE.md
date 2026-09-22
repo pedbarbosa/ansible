@@ -204,6 +204,10 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   template (`openwrt/files/dropbear.conf`), identical across all hosts —
   restarts `dropbear` on change, since (unlike LuCI) it's a long-running
   daemon that needs to reload for e.g. a `Port` change to take effect.
+- `openwrt/attendedsysupgrade.yml` (`/etc/config/attendedsysupgrade`) is
+  likewise a single static template (`openwrt/files/attendedsysupgrade.conf`),
+  identical across all hosts. No restart handler: like LuCI, ASU/`owut` only
+  run on demand rather than as a long-running daemon.
 - `openwrt/adblock.yml` (`/etc/config/adblock`) targets `hosts: router`
   directly (not `openwrt` gated by a `group_names` check) since it's the
   only file so far that doesn't apply to the APs at all. `adb_mailreceiver`/
