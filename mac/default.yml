@@ -59,7 +59,7 @@
     - name: slack-notify - Install script
       become: yes
       copy:
-        src: "{{ playbook_dir }}/../files/slack-notify"
+        src: files/slack-notify
         dest: /usr/local/bin/slack-notify
         owner: root
         group: wheel
