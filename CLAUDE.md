@@ -176,6 +176,12 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   installed by `openwrt/default.yml` first). The collectd server address
   (`openwrt_collectd_server_host`) lives in `local/secrets.yml`, same as the
   router/AP addresses, since it's also a real network detail.
+  `openwrt/files/collectd.conf` itself is kept free of commented-out lines
+  (other than the top "file managed" header) since every option in it is
+  actually in effect; the stock `collectd-mod-*` package default (all
+  plugins disabled, everything else commented out) is kept for reference at
+  `openwrt/reference/collectd.conf.upstream-default`, which isn't deployed
+  by any playbook.
 - `openwrt/system.yml` (`/etc/config/system`) covers hostname, timezone,
   logging, and NTP, all driven by `group_vars` (router vs. AP) same as the
   playbooks above — plus AP-only LED sections, which are genuinely
