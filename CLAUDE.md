@@ -117,17 +117,18 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
     avoid the collision. The AP host names (from `openwrt_ap_hosts[].name`
     in secrets, e.g. `ap-upstairs`) don't collide with the `ap` group name,
     so they're unaffected.
-- `openwrt/default.yml` runs an explicit `opkg update` as a `pre_task`,
-  before the `community.openwrt.init` role. The role does its own cache
-  refresh internally, but only fails the play if the opkg lists directory
-  didn't exist yet at all — if the directory exists but the refresh itself
-  fails (e.g. a device that's just never had a working `opkg update`), that
-  failure is swallowed, leaving a stale/empty cache. The next role step
-  (installing `coreutils-base64`/`-md5sum`/`-sha1sum` compat shims when
-  `openssl` is missing) then fails with a confusing "Unknown package"
-  instead of the real cause. Seen in practice on an AP whose opkg cache had
-  never successfully populated; the router was unaffected only because it
-  already had `openssl` and skipped that step.
+- `openwrt/default.yml` runs an explicit `apk update` as a `pre_task`,
+  before the `community.openwrt.init` role. This repo now targets OpenWrt
+  25.x, which replaced `opkg` with `apk` — the role detects whichever
+  package manager is present (`roles/init/tasks/main.yml` in
+  `community.openwrt`) and, on `apk`, its recommended-packages step
+  (`packages-apk.yml`, installing `coreutils-base64`/`-md5sum`/`-sha1sum`
+  compat shims when `openssl` is missing) does *no* cache-freshness check
+  of its own — unlike the old `opkg` path, which had its own (buggy)
+  staleness check that could swallow a failed refresh and fail later with a
+  confusing "Unknown package" instead of the real cause. Under `apk` the
+  explicit `pre_task` is the only thing ensuring the index is fresh before
+  that role step runs, so don't drop it thinking the role has it covered.
 - `community.openwrt` requires `ansible-core>=2.18` (see its
   `meta/runtime.yml`) — an older `ansible-core` (e.g. some distros' `apt
   install ansible` package) prints a "does not support Ansible version"
@@ -135,7 +136,7 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   command if something actually breaks.
 - Uses the `community.openwrt` collection (declared in `requirements.yml`), not
   `ansible.builtin`/`community.general` modules — it's shell-based
-  (`community.openwrt.opkg`/`uci`/`service`/`file`/`command`, etc.) so it
+  (`community.openwrt.apk`/`uci`/`service`/`file`/`command`, etc.) so it
   works without Python installed on the router/APs.
 - This is the repo's first external collection, so nothing else here does
   `ansible-galaxy collection install` — `run.sh` only bootstraps ansible
@@ -150,13 +151,17 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   unsatisfiable `ansible-galaxy collection install` requirement.
 - Check-mode support varies per module, same "force `check_mode: false` only
   for idempotent bootstrapping" rule as the mac/ubuntu gotcha above:
-  `community.openwrt.opkg`, `service`, and `file` support check mode fully
+  `community.openwrt.apk`, `service`, and `file` support check mode fully
   and are left alone; `community.openwrt.command` does not (`check_mode:
   support: none`) and is skipped under `-C` unless forced. `openwrt/default.yml`
-  forces only the `wget`-based `opkg-upgrade` bootstrap (idempotent via
-  `creates:`) — the actual `opkg-upgrade -f` upgrade is left to skip during a
-  dry run since it's a real, non-idempotent action.
-- `community.openwrt.opkg`'s `name` argument is `type: str` only (no list
+  no longer has any `command` tasks — the old `wget`-based `opkg-upgrade`
+  bootstrap and its `-f` upgrade step were removed when this repo moved to
+  `apk` (OpenWrt 25.x): `apk` has a native `apk upgrade`, but OpenWrt's own
+  docs warn against using it for full-system upgrades (it can miss
+  dependency/priority handling that Attended Sysupgrade does correctly), so
+  there's deliberately no upgrade-all step here — full-system upgrades are
+  left to ASU/sysupgrade tooling.
+- `community.openwrt.apk`'s `name` argument is `type: str` only (no list
   support like `ansible.builtin.apt`/`package`) — package lists in
   `group_vars` are real YAML lists and get `| join(',')` at the point of use.
 - `openwrt/collectd.yml` pushes a single `/etc/config/collectd` rendered from
