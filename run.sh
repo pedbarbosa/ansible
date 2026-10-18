@@ -63,7 +63,7 @@ if ! grep -qF -- "$public_key" "$authorized_keys_file"; then
 fi
 
 # Check if SSH known hosts exists
-if [[ ! -f "$known_hosts_file" ]];
+if [[ ! -f "$known_hosts_file" ]]; then
     touch "$known_hosts_file"
     chmod 600 "$known_hosts_file"
 fi
