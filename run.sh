@@ -66,6 +66,7 @@ fi
 if [[ ! -f "$known_hosts_file" ]];
     touch "$known_hosts_file"
     chmod 600 "$known_hosts_file"
+fi
 
 # Check if local SSH host is in hosts file
 if ! ssh-keyscan -H 127.0.0.1 localhost 2>/dev/null >> "$known_hosts_file"; then
