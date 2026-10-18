@@ -107,6 +107,11 @@ else
     exit 1
 fi
 
-ansible-playbook -CD "$playbook".yml
+if [[ ! -f "local/secrets.yml" ]]; then
+    cp local/secrets.yml.example local/secrets.yml
+    echo "WARNING: The 'local/secrets.yml' has been created, please make sure it's correctly configured before running 'ansible-playbook'!"
+fi
 
-echo "This was a dry run. If you wish to apply these changes, run: ansible-playbook -v $playbook.yml"
+echo -e "Ansible is ready. To perform a dry-run, execute:\n\tansible-playbook -CDv $playbook.yml"
+echo "To update the system replace the '-CDv' switch with just '-v'."
+
