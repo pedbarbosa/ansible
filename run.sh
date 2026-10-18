@@ -25,6 +25,16 @@ if ! command -v ansible &> /dev/null; then
     fi
 fi
 
+# Check if SSH server is set up
+if ! command -v systemctl is-active ssh.service &> /dev/null; then
+    echo "SSH isn't active, installing ..."
+    sudo apt install -y openssh-server
+fi
+if ! command -v systemctl is-enabled ssh.service &> /dev/null; then
+    echo "SSH isn't running, enabling..."
+    sudo systemctl enable --now ssh
+fi
+
 public_key_file="$HOME/.ssh/id_ed25519.pub"
 authorized_keys_file="$HOME/.ssh/authorized_keys"
 current_user=$(whoami)
