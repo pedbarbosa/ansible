@@ -35,27 +35,30 @@ if ! command -v systemctl is-enabled ssh.service &> /dev/null; then
     sudo systemctl enable --now ssh
 fi
 
-public_key_file="$HOME/.ssh/id_ed25519.pub"
-authorized_keys_file="$HOME/.ssh/authorized_keys"
-current_user=$(whoami)
+# Generate a key pair
+ssh_dir="$HOME/.ssh"
+private_key_file="$ssh_dir/id_ed25519"
+public_key_file="$private_key_file.pub"
+authorized_keys_file="$ssh_dir/authorized_keys"
 
-if [[ ! -f "$public_key_file" ]]; then
-    echo "SSH ID file '$public_key_file' doesn't exist, creating ..."
-    ssh-keygen -t ed25519 -f "$public_key_file" -C "$(hostname)" -N ""
+mkdir -p "$ssh_dir"
+chmod 700 "$ssh_dir"
+
+if [[ ! -f "$private_key_file" || ! -f "$public_key_file" ]]; then
+    ssh-keygen -t ed25519 -f "$private_key_file" \
+        -C "$(hostname)" -N ""
 fi
 
-if [[ ! -f "$authorized_keys_file" ]]; then
-    echo "Creating '$authorized_keys_file' file ..."
-    touch "$authorized_keys_file"
-    chmod 600 "$authorized_keys_file"
-fi
+chmod 600 "$private_key_file"
+chmod 644 "$public_key_file"
+
+# Add the PUBLIC key to authorized_keys, never the private key
+touch "$authorized_keys_file"
+chmod 600 "$authorized_keys_file"
 
 public_key=$(cat "$public_key_file")
-if ! grep -qF "$public_key" "$authorized_keys_file"; then
-    echo "'$authorized_keys_file' requires an update ..."
+if ! grep -qF -- "$public_key" "$authorized_keys_file"; then
     echo "$public_key" >> "$authorized_keys_file"
-else
-    echo "'$authorized_keys_file' is up-to-date."
 fi
 
 # Check if localhost is defined as a host
@@ -64,6 +67,7 @@ if [ ! -f "/etc/ansible/hosts" ]; then
     sudo touch /etc/ansible/hosts
 fi
 
+current_user=$(whoami)
 sudoers_file="/etc/sudoers.d/$current_user"
 if [[ ! -f "$sudoers_file" ]]; then
     echo "Adding user '$current_user' to sudoers ..."
