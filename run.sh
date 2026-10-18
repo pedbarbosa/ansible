@@ -40,6 +40,7 @@ ssh_dir="$HOME/.ssh"
 private_key_file="$ssh_dir/id_ed25519"
 public_key_file="$private_key_file.pub"
 authorized_keys_file="$ssh_dir/authorized_keys"
+known_hosts_file="$ssh_dir/known_hosts"
 
 mkdir -p "$ssh_dir"
 chmod 700 "$ssh_dir"
@@ -59,6 +60,17 @@ chmod 600 "$authorized_keys_file"
 public_key=$(cat "$public_key_file")
 if ! grep -qF -- "$public_key" "$authorized_keys_file"; then
     echo "$public_key" >> "$authorized_keys_file"
+fi
+
+# Check if SSH known hosts exists
+if [[ ! -f "$known_hosts_file" ]];
+    touch "$known_hosts_file"
+    chmod 600 "$known_hosts_file"
+
+# Check if local SSH host is in hosts file
+if ! ssh-keyscan -H 127.0.0.1 localhost 2>/dev/null >> "$known_hosts_file"; then
+    echo "ERROR: Failed to retrieve SSH host keys."
+    exit 1
 fi
 
 # Check if localhost is defined as a host
