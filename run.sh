@@ -9,6 +9,20 @@ function is_macos {
     [[ "$(uname -s)" == "Darwin" ]]
 }
 
+# Setting up user as sudoer
+current_user=$(whoami)
+sudoers_file="/etc/sudoers.d/$current_user"
+if [[ ! -f "$sudoers_file" ]]; then
+    echo "Adding user '$current_user' to sudoers ..."
+    echo "$current_user ALL=(ALL) NOPASSWD:ALL" | sudo tee "$sudoers_file" > /dev/null
+    sudo chmod 0440 "$sudoers_file"
+    if ! sudo visudo -cf "$sudoers_file"; then
+        echo "Generated sudoers file is invalid, removing ..."
+        sudo rm -f "$sudoers_file"
+        exit 1
+    fi
+fi
+
 # Check if Ansible is installed
 if ! command -v ansible &> /dev/null; then
     echo "Ansible isn't installed!"
@@ -71,19 +85,6 @@ fi
 if [ ! -f "/etc/ansible/hosts" ]; then
     sudo mkdir -p /etc/ansible
     sudo touch /etc/ansible/hosts
-fi
-
-current_user=$(whoami)
-sudoers_file="/etc/sudoers.d/$current_user"
-if [[ ! -f "$sudoers_file" ]]; then
-    echo "Adding user '$current_user' to sudoers ..."
-    echo "$current_user ALL=(ALL) NOPASSWD:ALL" | sudo tee "$sudoers_file" > /dev/null
-    sudo chmod 0440 "$sudoers_file"
-    if ! sudo visudo -cf "$sudoers_file"; then
-        echo "Generated sudoers file is invalid, removing ..."
-        sudo rm -f "$sudoers_file"
-        exit 1
-    fi
 fi
 
 if ! grep '127.0.0.1' /etc/ansible/hosts &> /dev/null; then
