@@ -1,0 +1,40 @@
+---
+# /etc/config/network - router and each AP profile get their own template
+# (rather than one file branched on group_names like dhcp.conf/
+# firewall.conf) because the physical port/switch layout genuinely differs
+# per hardware model, not just router-vs-AP: the ap_dual_led profile trunks
+# a single eth0, ap_wan_led repurposes its wan port into the trunk, the
+# router fans out across 5 ports. Targets the `ap_dual_led`/`ap_wan_led`
+# profile groups (same ones `openwrt/system.yml` uses for LEDs) rather than
+# a specific AP's inventory name - that name is whatever's set in
+# `local/secrets.yml`'s `openwrt_ap_hosts[].name` and must never be
+# hardcoded here.
+#
+# Deliberately NOT notifying a restart: a bad bridge/VLAN/IP push here can
+# sever SSH/LuCI access to the device entirely, unlike dnsmasq/firewall/etc.
+# Apply by hand, one device at a time, with console/physical access on
+# standby - e.g. `uci commit network && /etc/init.d/network reload` (or a
+# reboot if a full re-init is safer for the change being made).
+- hosts: router
+  gather_facts: false
+  tasks:
+    - name: openwrt - Configure network (router)
+      community.openwrt.template:
+        src: files/network.router.conf
+        dest: /etc/config/network
+
+- hosts: ap_dual_led
+  gather_facts: false
+  tasks:
+    - name: openwrt - Configure network (ap_dual_led)
+      community.openwrt.template:
+        src: files/network.ap_dual_led.conf
+        dest: /etc/config/network
+
+- hosts: ap_wan_led
+  gather_facts: false
+  tasks:
+    - name: openwrt - Configure network (ap_wan_led)
+      community.openwrt.template:
+        src: files/network.ap_wan_led.conf
+        dest: /etc/config/network

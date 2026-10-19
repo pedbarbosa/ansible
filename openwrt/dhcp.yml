@@ -1,4 +1,10 @@
 ---
+# odhcpd is disabled everywhere: IPv6 (ra/dhcpv6) is off on every interface
+# on every host, and maindhcp is '0' (dnsmasq handles DHCPv4), so it has
+# nothing left to do anywhere. dnsmasq stays enabled only on the router
+# (the sole DNS/DHCP authority); on APs it's neutered by dhcp.conf itself
+# (port '0', DHCP ignored for both VLANs) but that alone would leave a
+# do-nothing daemon running, so it's stopped/disabled too.
 - hosts: openwrt
   gather_facts: false
   tasks:
@@ -8,15 +14,23 @@
         dest: /etc/config/dhcp
       notify:
         - openwrt - Restart dnsmasq
-        - openwrt - Restart odhcpd
+
+    - name: openwrt - Disable dnsmasq on APs
+      community.openwrt.service:
+        name: dnsmasq
+        state: stopped
+        enabled: false
+      when: "'router' not in group_names"
+
+    - name: openwrt - Disable odhcpd
+      community.openwrt.service:
+        name: odhcpd
+        state: stopped
+        enabled: false
 
   handlers:
     - name: openwrt - Restart dnsmasq
       community.openwrt.service:
         name: dnsmasq
         state: restarted
-
-    - name: openwrt - Restart odhcpd
-      community.openwrt.service:
-        name: odhcpd
-        state: restarted
+      when: "'router' in group_names"

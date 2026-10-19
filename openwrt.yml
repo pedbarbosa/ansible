@@ -5,6 +5,12 @@
 # Core OpenWrt packages, shared across the router and both APs
 - import_playbook: openwrt/default.yml
 
+# /etc/config/network - VLANs/bridges/WAN, one template per device (see
+# openwrt/network.yml for why). No restart handler: apply by hand with
+# console/physical access on standby, since a bad push here can sever
+# remote access to the device entirely.
+- import_playbook: openwrt/network.yml
+
 # collectd monitoring, reporting back to the same collectd server as ubuntu/collectd.yml
 - import_playbook: openwrt/collectd.yml
 
@@ -22,14 +28,19 @@
 # dropbear (SSH) - identical across all hosts, no per-host variation
 - import_playbook: openwrt/dropbear.yml
 
-# irqbalance - enabled on the router only
-- import_playbook: openwrt/irqbalance.yml
+# attendedsysupgrade (ASU/owut client) - identical across all hosts, no
+# per-host variation
+- import_playbook: openwrt/attendedsysupgrade.yml
 
 # adblock - router only (the APs don't run adblock/dnsmasq)
 - import_playbook: openwrt/adblock.yml
 
 # banip - router only, same reasoning as adblock
 - import_playbook: openwrt/banip.yml
+
+# root crontab (daily adblock/banip reloads) - router only, same reasoning as
+# adblock/banip
+- import_playbook: openwrt/cron.yml
 
 # firewall - AP config is committed directly (identical, non-sensitive);
 # the router's zones/rules/port forwards are too revealing of the internal

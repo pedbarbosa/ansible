@@ -22,7 +22,7 @@
 
     - name: Configure vimrc
       copy:
-        src: "{{ playbook_dir }}/../files/vimrc"
+        src: files/vimrc
         dest: "{{ vimrc }}"
         mode: 0640
 

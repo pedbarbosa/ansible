@@ -21,7 +21,7 @@
   tasks:
     - name: zsh - Configure zshrc for user
       template:
-        src: "{{ playbook_dir }}/../files/zshrc.j2"
+        src: files/zshrc.j2
         dest: ~/.zshrc
 
     - name: zsh - Configure oh-my-zsh for user

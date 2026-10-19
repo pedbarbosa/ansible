@@ -66,6 +66,15 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
     task is also forced with `check_mode: false` so the download
     actually happens.
 
+## Agent execution constraints
+
+- Never run `ansible-playbook` yourself — not even a check-mode/dry-run
+  (`-C`/`-CD`, `run.sh`'s default). The router and APs aren't reachable from
+  this environment, so any invocation just fails or hangs; it also isn't
+  your call to make against live network gear. Prepare/edit the playbooks
+  and templates, then hand off the exact command for the user to run on a
+  host that actually has access.
+
 ## Shared files across mac/ubuntu
 
 - When a file is identical (or near-identical) between `mac/` and `ubuntu/`
@@ -108,17 +117,18 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
     avoid the collision. The AP host names (from `openwrt_ap_hosts[].name`
     in secrets, e.g. `ap-upstairs`) don't collide with the `ap` group name,
     so they're unaffected.
-- `openwrt/default.yml` runs an explicit `opkg update` as a `pre_task`,
-  before the `community.openwrt.init` role. The role does its own cache
-  refresh internally, but only fails the play if the opkg lists directory
-  didn't exist yet at all — if the directory exists but the refresh itself
-  fails (e.g. a device that's just never had a working `opkg update`), that
-  failure is swallowed, leaving a stale/empty cache. The next role step
-  (installing `coreutils-base64`/`-md5sum`/`-sha1sum` compat shims when
-  `openssl` is missing) then fails with a confusing "Unknown package"
-  instead of the real cause. Seen in practice on an AP whose opkg cache had
-  never successfully populated; the router was unaffected only because it
-  already had `openssl` and skipped that step.
+- `openwrt/default.yml` runs an explicit `apk update` as a `pre_task`,
+  before the `community.openwrt.init` role. This repo now targets OpenWrt
+  25.x, which replaced `opkg` with `apk` — the role detects whichever
+  package manager is present (`roles/init/tasks/main.yml` in
+  `community.openwrt`) and, on `apk`, its recommended-packages step
+  (`packages-apk.yml`, installing `coreutils-base64`/`-md5sum`/`-sha1sum`
+  compat shims when `openssl` is missing) does *no* cache-freshness check
+  of its own — unlike the old `opkg` path, which had its own (buggy)
+  staleness check that could swallow a failed refresh and fail later with a
+  confusing "Unknown package" instead of the real cause. Under `apk` the
+  explicit `pre_task` is the only thing ensuring the index is fresh before
+  that role step runs, so don't drop it thinking the role has it covered.
 - `community.openwrt` requires `ansible-core>=2.18` (see its
   `meta/runtime.yml`) — an older `ansible-core` (e.g. some distros' `apt
   install ansible` package) prints a "does not support Ansible version"
@@ -126,7 +136,7 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   command if something actually breaks.
 - Uses the `community.openwrt` collection (declared in `requirements.yml`), not
   `ansible.builtin`/`community.general` modules — it's shell-based
-  (`community.openwrt.opkg`/`uci`/`service`/`file`/`command`, etc.) so it
+  (`community.openwrt.apk`/`uci`/`service`/`file`/`command`, etc.) so it
   works without Python installed on the router/APs.
 - This is the repo's first external collection, so nothing else here does
   `ansible-galaxy collection install` — `run.sh` only bootstraps ansible
@@ -141,13 +151,17 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   unsatisfiable `ansible-galaxy collection install` requirement.
 - Check-mode support varies per module, same "force `check_mode: false` only
   for idempotent bootstrapping" rule as the mac/ubuntu gotcha above:
-  `community.openwrt.opkg`, `service`, and `file` support check mode fully
+  `community.openwrt.apk`, `service`, and `file` support check mode fully
   and are left alone; `community.openwrt.command` does not (`check_mode:
   support: none`) and is skipped under `-C` unless forced. `openwrt/default.yml`
-  forces only the `wget`-based `opkg-upgrade` bootstrap (idempotent via
-  `creates:`) — the actual `opkg-upgrade -f` upgrade is left to skip during a
-  dry run since it's a real, non-idempotent action.
-- `community.openwrt.opkg`'s `name` argument is `type: str` only (no list
+  no longer has any `command` tasks — the old `wget`-based `opkg-upgrade`
+  bootstrap and its `-f` upgrade step were removed when this repo moved to
+  `apk` (OpenWrt 25.x): `apk` has a native `apk upgrade`, but OpenWrt's own
+  docs warn against using it for full-system upgrades (it can miss
+  dependency/priority handling that Attended Sysupgrade does correctly), so
+  there's deliberately no upgrade-all step here — full-system upgrades are
+  left to ASU/sysupgrade tooling.
+- `community.openwrt.apk`'s `name` argument is `type: str` only (no list
   support like `ansible.builtin.apt`/`package`) — package lists in
   `group_vars` are real YAML lists and get `| join(',')` at the point of use.
 - `openwrt/collectd.yml` pushes a single `/etc/config/collectd` rendered from
@@ -162,6 +176,12 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   installed by `openwrt/default.yml` first). The collectd server address
   (`openwrt_collectd_server_host`) lives in `local/secrets.yml`, same as the
   router/AP addresses, since it's also a real network detail.
+  `openwrt/files/collectd.conf` itself is kept free of commented-out lines
+  (other than the top "file managed" header) since every option in it is
+  actually in effect; the stock `collectd-mod-*` package default (all
+  plugins disabled, everything else commented out) is kept for reference at
+  `openwrt/reference/collectd.conf.upstream-default`, which isn't deployed
+  by any playbook.
 - `openwrt/system.yml` (`/etc/config/system`) covers hostname, timezone,
   logging, and NTP, all driven by `group_vars` (router vs. AP) same as the
   playbooks above — plus AP-only LED sections, which are genuinely
@@ -190,6 +210,10 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   template (`openwrt/files/dropbear.conf`), identical across all hosts —
   restarts `dropbear` on change, since (unlike LuCI) it's a long-running
   daemon that needs to reload for e.g. a `Port` change to take effect.
+- `openwrt/attendedsysupgrade.yml` (`/etc/config/attendedsysupgrade`) is
+  likewise a single static template (`openwrt/files/attendedsysupgrade.conf`),
+  identical across all hosts. No restart handler: like LuCI, ASU/`owut` only
+  run on demand rather than as a long-running daemon.
 - `openwrt/adblock.yml` (`/etc/config/adblock`) targets `hosts: router`
   directly (not `openwrt` gated by a `group_names` check) since it's the
   only file so far that doesn't apply to the APs at all. `adb_mailreceiver`/
@@ -220,25 +244,28 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   one tab on `option`/`list` lines). A flat file holding raw UCI text can
   be copied in from the device (or from LuCI's own output) with no
   translation step, so it can't drift.
-- `openwrt/irqbalance.yml` (`/etc/config/irqbalance`) is enabled on the
-  router only and disabled on both APs, driven by `openwrt_irqbalance_enabled`
-  (`'router' in group_names`) in `group_vars/all.yml` — same
-  router-vs-AP branching pattern as `openwrt_log_size`/`openwrt_cronloglevel`
-  above rather than a separate `group_vars/router.yml` override, since it's
-  a single boolean rather than a router-only value with no AP equivalent.
-  The `luci-app-irqbalance` package (which provides the irqbalance binary +
-  init script) is already installed on all hosts via
-  `openwrt_packages_common`, so `openwrt/default.yml` needed no changes.
-
 - `openwrt/dhcp.yml` (`/etc/config/dhcp`) covers `dnsmasq`/`dhcp`/`odhcpd`
   sections, branched on `'router' in group_names` inside
   `openwrt/files/dhcp.conf` — the router runs the actual DHCP server (`lan`/
-  `iot`/`wan` sections, `authoritative`/`sequential_ip`/`nonegcache`), while
-  APs just relay to it (`list server '{{ openwrt_router_host }}'`, a single
-  `lan` section with `ra`/`dhcpv6`/`dhcpv4` all `server`). `domain` is the
-  same `domain` secret reused by `openwrt/adblock.yml`/`banip.yml`. Notifies
-  both `dnsmasq` and `odhcpd` restarts, since the one file configures both
-  daemons. The template also has a `local/router-dhcp-extra.conf` hook
+  `iot`/`wan` sections, `authoritative`/`sequential_ip`/`nonegcache`) and is
+  the only host authorised to answer DNS or DHCP. APs are fully passive:
+  `option port '0'` disables dnsmasq's own resolver (it previously marked
+  `/lan/` as a strictly-local domain via `option local`, which made it
+  NXDOMAIN local hostnames it had no records for instead of forwarding them —
+  the router is now the sole DNS answerer), and both `lan` and `iot` sections
+  carry `ignore '1'`/`ra 'disabled'`/`dhcpv6 'disabled'` so DHCP for both
+  VLANs is fully delegated to the router and IPv6 RA/DHCPv6 stay off
+  network-wide (APs no longer run their own independent
+  `ra`/`dhcpv6`/`ra_slaac` server as they did before). `domain` is the
+  same `domain` secret reused by `openwrt/adblock.yml`/`banip.yml`. Since the
+  template neuters both daemons everywhere except the router's dnsmasq,
+  `openwrt/dhcp.yml` also disables the now-useless services outright rather
+  than leaving do-nothing daemons running: `odhcpd` is stopped and disabled
+  unconditionally on every host (IPv6/`maindhcp` are off everywhere, so it
+  has nothing left to do anywhere), and `dnsmasq` is stopped and disabled on
+  APs specifically (`'router' not in group_names`) — the restart handler for
+  `dnsmasq` is likewise gated to `'router' in group_names` only. The template
+  also has a `local/router-dhcp-extra.conf` hook
   (read via `lookup('file', ..., errors='ignore')`, so a missing file just
   renders as empty — appended verbatim after `odhcpd` with a blank line
   before it) for the router's `config domain`/`config host` static-lease
@@ -247,6 +274,30 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   hostnames, too
   revealing to commit, and plain UCI text so there's no YAML-indentation
   drift against what LuCI writes) without touching the template again.
+- `openwrt/network.yml` (`/etc/config/network`) breaks from every other
+  OpenWrt playbook's structure: instead of one `group_names`-branched
+  template, each device profile gets its own plain file under
+  `openwrt/files/` (`network.router.conf`/`network.ap_dual_led.conf`/
+  `network.ap_wan_led.conf`, three separate `hosts:` plays targeting the
+  `router`/`ap_dual_led`/`ap_wan_led` groups) because the physical
+  port/switch layout genuinely differs per hardware model — the
+  `ap_dual_led` profile trunks a single `eth0`, `ap_wan_led` repurposes its
+  `wan` port into the VLAN trunk, the router fans out across 5 ports — not
+  just router-vs-AP the way `dhcp.conf`/`firewall.conf` do. It targets the
+  same `ap_dual_led`/`ap_wan_led` profile groups `openwrt/system.yml` uses
+  for LEDs, never a specific AP's inventory hostname — that name is
+  whatever's set in `local/secrets.yml`'s `openwrt_ap_hosts[].name` and must
+  never be hardcoded here. `host` on
+  each `openwrt_ap_hosts` entry (and `openwrt_router_host`) now does double
+  duty as `ansible_host` *and* the `lan` interface's `ipaddr` in these
+  templates, so it must be the device's real static LAN IP, not just
+  whatever address ansible happens to reach it on — keep that in sync if
+  either ever changes. IPv6 is disabled network-wide via `option ipv6 '0'`
+  on every bridge `device` section (the router's `wan` interface disables it
+  too, since it's PPPoE not a bridge). No restart handler, unlike every
+  other playbook here: a bad bridge/VLAN/IP push can sever SSH/LuCI access
+  to the device outright, so this only ever stages the file — apply by
+  hand, one device at a time, with console/physical access on standby.
 
 ## Gotchas learned the hard way
 

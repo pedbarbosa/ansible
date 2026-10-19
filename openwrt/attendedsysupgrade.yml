@@ -1,0 +1,8 @@
+---
+- hosts: openwrt
+  gather_facts: false
+  tasks:
+    - name: openwrt - Configure attendedsysupgrade
+      community.openwrt.template:
+        src: files/attendedsysupgrade.conf
+        dest: /etc/config/attendedsysupgrade

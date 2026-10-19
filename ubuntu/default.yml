@@ -12,7 +12,7 @@
 
     - name: ubuntu - Check if base packages are installed
       apt:
-        name: bash-completion, curl, ethtool, git, iftop, iotop, lsof, meld, ncdu, net-tools, openssh-server, plocate, python3-requests, rsync, wget
+        name: bash-completion, curl, ethtool, git, iftop, iotop, lsof, ncdu, net-tools, openssh-server, plocate, python3-requests, rsync, wget
         state: present
         update_cache: true
 
@@ -94,7 +94,7 @@
 
     - name: slack-notify - Install script
       copy:
-        src: "{{ playbook_dir }}/../files/slack-notify"
+        src: files/slack-notify
         dest: /usr/local/bin/slack-notify
         owner: root
         group: root

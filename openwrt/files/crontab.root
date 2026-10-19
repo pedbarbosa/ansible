@@ -1,0 +1,4 @@
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+
+0 6 * * * /etc/init.d/adblock reload
+15 6 * * * /etc/init.d/banip reload
