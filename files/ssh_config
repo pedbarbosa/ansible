@@ -4,7 +4,7 @@ ServerAliveCountMax 20
  
 # SSH Connection pooling for faster additional connections to a machine
 ControlMaster auto
-ControlPath /tmp/ssh_mux_%h_%p_%r
+ControlPath ~/.ssh/controlmasters/%C
  
 # This makes subsequent connections go faster
 ControlPersist 2h
