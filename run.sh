@@ -69,10 +69,44 @@ if [[ ! -f "$known_hosts_file" ]]; then
 fi
 
 # Check if local SSH host is in hosts file
-if ! ssh-keyscan -H 127.0.0.1 localhost 2>/dev/null >> "$known_hosts_file"; then
+scanned_keys="$(ssh-keyscan -H 127.0.0.1 localhost 2>/dev/null || true)"
+if [[ -z "$scanned_keys" ]]; then
     echo "ERROR: Failed to retrieve SSH host keys."
     exit 1
 fi
+
+# Verify scanned keys against locally trusted SSH host public keys
+local_fingerprints="$(awk '{print $1 " " $2}' /etc/ssh/ssh_host_*_key.pub 2>/dev/null | while read -r keytype keydata; do
+    [[ -n "${keytype:-}" && -n "${keydata:-}" ]] || continue
+    printf '%s %s\n' "$keytype" "$keydata" | ssh-keygen -lf - 2>/dev/null | awk '{print $2}'
+done | sort -u)"
+
+scanned_fingerprints="$(printf '%s\n' "$scanned_keys" | awk '{print $2 " " $3}' | while read -r keytype keydata; do
+    [[ -n "${keytype:-}" && -n "${keydata:-}" ]] || continue
+    printf '%s %s\n' "$keytype" "$keydata" | ssh-keygen -lf - 2>/dev/null | awk '{print $2}'
+done | sort -u)"
+
+verified=0
+while read -r fp; do
+    [[ -n "${fp:-}" ]] || continue
+    if grep -qFx -- "$fp" <<< "$local_fingerprints"; then
+        verified=1
+        break
+    fi
+done <<< "$scanned_fingerprints"
+
+if [[ "$verified" -ne 1 ]]; then
+    echo "ERROR: Scanned SSH host keys for localhost do not match local host keys."
+    exit 1
+fi
+
+# Append only missing entries to avoid duplicates
+while IFS= read -r keyline; do
+    [[ -n "${keyline:-}" ]] || continue
+    if ! grep -qF -- "$keyline" "$known_hosts_file"; then
+        echo "$keyline" >> "$known_hosts_file"
+    fi
+done <<< "$scanned_keys"
 
 # Check if localhost is defined as a host
 if [ ! -f "/etc/ansible/hosts" ]; then
