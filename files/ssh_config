@@ -15,6 +15,6 @@ Host *
   GSSAPIAuthentication no
 
 # Accept new keys automatically for local servers, but reject changed keys
-Host 10.* 127.* 172.* 192.168.*
+Match exec "ip route get %h 2>/dev/null | grep -E -q '10\.|127\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.'"
   StrictHostKeyChecking accept-new
 
