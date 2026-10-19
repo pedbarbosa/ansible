@@ -1,0 +1,21 @@
+# Stop timing out connections
+ServerAliveInterval 30
+ServerAliveCountMax 20
+ 
+# SSH Connection pooling for faster additional connections to a machine
+ControlMaster auto
+ControlPath /tmp/ssh_mux_%h_%p_%r
+ 
+# This makes subsequent connections go faster
+ControlPersist 2h
+ 
+# Make it so ssh-ing from one server to another passes keys around automagically
+Host *
+  ForwardAgent yes
+  # Get rid of SSH connection delays
+  GSSAPIAuthentication no
+
+# Ignore fingerprint for local servers
+Host 10.* 127.* 172.* 192.168.*
+  StrictHostKeyChecking no
+
