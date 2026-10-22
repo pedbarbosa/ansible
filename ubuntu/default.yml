@@ -70,7 +70,7 @@
         name: postfix
         state: stopped
         enabled: no
-      when: "'postfix.service' in services"
+      when: "'postfix.service' in ansible_facts['services']"
 
     - name: slack-notify - Read secrets from file
       include_vars:

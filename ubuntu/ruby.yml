@@ -17,7 +17,10 @@
 - hosts: all
   tasks:
   - name: ruby - Install rbenv
-    command: curl -fsSL https://github.com/rbenv/rbenv-installer/raw/HEAD/bin/rbenv-installer | bash
+    ansible.builtin.shell: >
+      curl -fsSL
+      https://github.com/rbenv/rbenv-installer/raw/HEAD/bin/rbenv-installer
+      | bash
     args:
-      creates: ~/.rbenv
+      creates: "{{ ansible_facts['env']['HOME'] }}/.rbenv"
 
