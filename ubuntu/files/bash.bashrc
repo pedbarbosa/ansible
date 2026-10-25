@@ -6,7 +6,7 @@
 # this file has to be sourced in /etc/profile.
 
 # If not running interactively, don't do anything
-[ -z "$PS1" ] && return
+[ -z "${PS1-}" ] && return
 
 # check the window size after each command and, if necessary,
 # update the values of LINES and COLUMNS.
@@ -14,24 +14,31 @@ shopt -s checkwinsize
 
 # set variable identifying the chroot you work in (used in the prompt below)
 if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
-    debian_chroot=$(cat /etc/debian_chroot)
+    debian_chroot=$(< /etc/debian_chroot)
 fi
 
 # set a fancy prompt (non-color, overwrite the one in /etc/profile)
 # but only if not SUDOing and have SUDO_PS1 set; then assume smart user.
-if ! [ -n "${SUDO_USER}" -a -n "${SUDO_PS1}" ]; then
+if ! [ -n "${SUDO_USER-}" -a -n "${SUDO_PS1-}" ]; then
   PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
 fi
 
-# Commented out, don't overwrite xterm -T "title" -n "icontitle" by default.
-# If this is an xterm set the title to user@host:dir
-#case "$TERM" in
-#xterm*|rxvt*)
-#    PROMPT_COMMAND='echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD}\007"'
-#    ;;
-#*)
-#    ;;
-#esac
+case "$TERM" in
+xterm*|vte*|gnome*)
+    for _hook in /etc/profile.d/vte*.sh; do : ; done
+    if [ -r $_hook ]; then
+        . $_hook
+    fi
+    unset _hook
+    ;;
+xterm*|rxvt*)
+    # Commented out, don't overwrite xterm -T "title" -n "icontitle" by default.
+    # If this is an xterm set the title to user@host:dir
+    #PROMPT_COMMAND='echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD}\007"'
+    ;;
+*)
+    ;;
+esac
 
 # enable bash completion in interactive shells
 #if ! shopt -oq posix; then
@@ -42,21 +49,8 @@ fi
 #  fi
 #fi
 
-# sudo hint
-if [ ! -e "$HOME/.sudo_as_admin_successful" ] && [ ! -e "$HOME/.hushlogin" ] ; then
-    case " $(groups) " in *\ admin\ *|*\ sudo\ *)
-    if [ -x /usr/bin/sudo ]; then
-	cat <<-EOF
-	To run a command as administrator (user "root"), use "sudo <command>".
-	See "man sudo_root" for details.
-	
-	EOF
-    fi
-    esac
-fi
-
 # if the command-not-found package is installed, use it
-if [ -x /usr/lib/command-not-found -o -x /usr/share/command-not-found/command-not-found ]; then
+if [ -x /usr/lib/command-not-found ] || [ -x /usr/share/command-not-found/command-not-found ]; then
 	function command_not_found_handle {
 	        # check because c-n-f could've been removed in the meantime
                 if [ -x /usr/lib/command-not-found ]; then
@@ -71,3 +65,17 @@ if [ -x /usr/lib/command-not-found -o -x /usr/share/command-not-found/command-no
 		fi
 	}
 fi
+
+# Source profile.d even though "it's meant to be for login shells
+# only". This is commented out by default, for not cluttering the
+# shell with things a user might not expect.  Please see above
+# for the explict hooks for bash-completion and command-not-found.
+
+#if [ -d /etc/profile.d ]; then
+#  for _i in /etc/profile.d/*.sh; do
+#    if [ -r $_i ]; then
+#      . $_i
+#    fi
+#  done
+#  unset _i
+#fi
