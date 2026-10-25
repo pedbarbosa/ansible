@@ -9,6 +9,20 @@ function is_macos {
     [[ "$(uname -s)" == "Darwin" ]]
 }
 
+# Setting up user as sudoer
+current_user=$(whoami)
+sudoers_file="/etc/sudoers.d/$current_user"
+if [[ ! -f "$sudoers_file" ]]; then
+    echo "Adding user '$current_user' to sudoers ..."
+    echo "$current_user ALL=(ALL) NOPASSWD:ALL" | sudo tee "$sudoers_file" > /dev/null
+    sudo chmod 0440 "$sudoers_file"
+    if ! sudo visudo -cf "$sudoers_file"; then
+        echo "Generated sudoers file is invalid, removing ..."
+        sudo rm -f "$sudoers_file"
+        exit 1
+    fi
+fi
+
 # Check if Ansible is installed
 if ! command -v ansible &> /dev/null; then
     echo "Ansible isn't installed!"
@@ -25,45 +39,52 @@ if ! command -v ansible &> /dev/null; then
     fi
 fi
 
-public_key_file="$HOME/.ssh/id_ed25519.pub"
-authorized_keys_file="$HOME/.ssh/authorized_keys"
-current_user=$(whoami)
-
-if [[ ! -f "$public_key_file" ]]; then
-    echo "SSH ID file '$public_key_file' doesn't exist, creating ..."
-    ssh-keygen -t ed25519 -f "$public_key_file" -C "$(hostname)" -N ""
+# Check if SSH server is set up
+if ! command -v systemctl is-active ssh.service &> /dev/null; then
+    echo "SSH isn't active, installing ..."
+    sudo apt install -y openssh-server
+fi
+if ! command -v systemctl is-enabled ssh.service &> /dev/null; then
+    echo "SSH isn't running, enabling..."
+    sudo systemctl enable --now ssh
 fi
 
-if [[ ! -f "$authorized_keys_file" ]]; then
-    echo "Creating '$authorized_keys_file' file ..."
-    touch "$authorized_keys_file"
-    chmod 600 "$authorized_keys_file"
+# Generate a key pair
+ssh_dir="$HOME/.ssh"
+private_key_file="$ssh_dir/id_ed25519"
+public_key_file="$private_key_file.pub"
+authorized_keys_file="$ssh_dir/authorized_keys"
+known_hosts_file="$ssh_dir/known_hosts"
+
+mkdir -p "$ssh_dir"
+chmod 700 "$ssh_dir"
+
+if [[ ! -f "$private_key_file" || ! -f "$public_key_file" ]]; then
+    ssh-keygen -t ed25519 -f "$private_key_file" \
+        -C "$(hostname)" -N ""
 fi
+
+chmod 600 "$private_key_file"
+chmod 644 "$public_key_file"
+
+# Add the PUBLIC key to authorized_keys, never the private key
+touch "$authorized_keys_file"
+chmod 600 "$authorized_keys_file"
 
 public_key=$(cat "$public_key_file")
-if ! grep -qF "$public_key" "$authorized_keys_file"; then
-    echo "'$authorized_keys_file' requires an update ..."
+if ! grep -qF -- "$public_key" "$authorized_keys_file"; then
     echo "$public_key" >> "$authorized_keys_file"
-else
-    echo "'$authorized_keys_file' is up-to-date."
+fi
+
+# Set user's SSH config
+if [ ! -f "$HOME/.ssh/config" ]; then
+    cp files/ssh_config "$HOME/.ssh/config"
 fi
 
 # Check if localhost is defined as a host
 if [ ! -f "/etc/ansible/hosts" ]; then
     sudo mkdir -p /etc/ansible
     sudo touch /etc/ansible/hosts
-fi
-
-sudoers_file="/etc/sudoers.d/$current_user"
-if [[ ! -f "$sudoers_file" ]]; then
-    echo "Adding user '$current_user' to sudoers ..."
-    echo "$current_user ALL=(ALL) NOPASSWD:ALL" | sudo tee "$sudoers_file" > /dev/null
-    sudo chmod 0440 "$sudoers_file"
-    if ! sudo visudo -cf "$sudoers_file"; then
-        echo "Generated sudoers file is invalid, removing ..."
-        sudo rm -f "$sudoers_file"
-        exit 1
-    fi
 fi
 
 if ! grep '127.0.0.1' /etc/ansible/hosts &> /dev/null; then
@@ -80,6 +101,11 @@ else
     exit 1
 fi
 
-ansible-playbook -CD "$playbook".yml
+if [[ ! -f "local/secrets.yml" ]]; then
+    cp local/secrets.yml.example local/secrets.yml
+    echo "WARNING: The 'local/secrets.yml' has been created, please make sure it's correctly configured before running 'ansible-playbook'!"
+fi
 
-echo "This was a dry run. If you wish to apply these changes, run: ansible-playbook -v $playbook.yml"
+echo -e "Ansible is ready. To perform a dry-run, execute:\n\tansible-playbook -CDv $playbook.yml"
+echo "To update the system replace the '-CDv' switch with just '-v'."
+

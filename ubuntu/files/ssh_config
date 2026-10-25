@@ -1,0 +1,20 @@
+# Stop timing out connections
+ServerAliveInterval 30
+ServerAliveCountMax 20
+ 
+# SSH Connection pooling for faster additional connections to a machine
+ControlMaster auto
+ControlPath ~/.ssh/controlmasters/%C
+ 
+# This makes subsequent connections go faster
+ControlPersist 2h
+ 
+# Make it so ssh-ing from one server to another passes keys around automagically
+Host *
+  # Get rid of SSH connection delays
+  GSSAPIAuthentication no
+
+# Accept new keys automatically for local servers, but reject changed keys
+Match exec "ip route get %h 2>/dev/null | grep -E -q '10\.|127\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.'"
+  StrictHostKeyChecking accept-new
+

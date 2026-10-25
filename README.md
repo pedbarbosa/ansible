@@ -19,7 +19,7 @@ Personal Ansible configuration for provisioning and configuring machines — an 
 ./run.sh
 ```
 
-On Ubuntu this installs Ansible via `apt` if missing; on macOS it installs Homebrew (if missing) and then Ansible via `brew`. Either way, `run.sh` then bootstraps the machine and does a dry run (`ansible-playbook -CD ubuntu.yml` / `mac.yml`), printing a diff of what would change. To actually apply the changes:
+On Ubuntu this installs Ansible via `apt` if missing; on macOS it installs Homebrew (if missing) and then Ansible via `brew`. Either way, `run.sh` then bootstraps the machine and creates a `local/secrets.yml` with local configuration. This file must be updated before running Ansible for the first time! Once ready, apply changes with:
 
 ```
 ansible-playbook -v ubuntu.yml   # Ubuntu
