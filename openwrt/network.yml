@@ -22,6 +22,7 @@
       community.openwrt.template:
         src: files/network.router.conf
         dest: /etc/config/network
+        no_log: true
 
 - hosts: ap_dual_led
   gather_facts: false

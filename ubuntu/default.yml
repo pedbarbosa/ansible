@@ -36,14 +36,6 @@
         - "files/89-docker-info"
       notify: Update MOTD
 
-    - name: bash - Disable MOTD news
-      ansible.builtin.lineinfile:
-        path: /etc/default/motd-news
-        regexp: "^ENABLED="
-        line: "ENABLED=0"
-        state: present
-      notify: Update MOTD
-
     - name: ssh - Configure service
       copy:
         src: files/sshd_config
