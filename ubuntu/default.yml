@@ -3,6 +3,14 @@
   become: yes
   become_user: root
   tasks:
+    - name: Read secrets from file
+      include_vars:
+        file: ../local/secrets.yml
+
+    - name: ubuntu - Set timezone
+      community.general.timezone:
+        name: "{{ timezone }}"
+
     - name: ubuntu - Upgrade all outdated packages
       apt:
         upgrade: dist
