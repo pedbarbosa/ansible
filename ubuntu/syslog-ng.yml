@@ -13,13 +13,12 @@
   - name: syslog-ng - Flush handlers
     meta: flush_handlers
 
-  - name: syslog-ng - Set syslog-ng repo
-    copy:
-      src: files/syslog-ng-ose.list
-      dest: /etc/apt/sources.list.d/syslog-ng-ose.list
-      owner: root
-      group: root
-      mode: 0644
+  - name: Configure syslog-ng repository
+    ansible.builtin.apt_repository:
+      repo: "deb [signed-by=/etc/apt/trusted.gpg.d/syslog-ng-key.asc] https://ose-repo.syslog-ng.com/apt/ stable ubuntu-{{ ansible_facts['distribution_release'] }}"
+      state: present
+      filename: syslog-ng-ose
+      update_cache: false
 
   - name: syslog-ng - Ensure rsyslog is absent
     apt:
