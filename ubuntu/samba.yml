@@ -12,6 +12,14 @@
     include_vars:
       file: ../local/secrets.yml
 
+  - name: samba - Create share user
+    user:
+      name: "{{ share_user_account }}"
+      shell: /usr/sbin/nologin
+      create_home: no
+      password_lock: yes
+      state: present
+
   - name: samba - Configure smb.conf
     template:
       src: files/smb.conf
