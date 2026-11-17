@@ -49,6 +49,11 @@ openwrt_collectd_processes:
   - uhttpd
 
 # openwrt/system.yml
+# POSIX TZ string for system.conf's `timezone` (e.g. AEST-10), derived from
+# the IANA `timezone` secret: it's the footer line of the zone's TZif file,
+# the same value LuCI picks. Runs on the Ansible controller, so it needs
+# tzdata (/usr/share/zoneinfo) installed there.
+openwrt_timezone: "{{ lookup('pipe', 'tail -n1 /usr/share/zoneinfo/' ~ timezone) }}"
 openwrt_log_port: 514
 openwrt_log_size: "{{ openwrt_log_size_router if 'router' in group_names else 64 }}"
 openwrt_cronloglevel: "{{ openwrt_cronloglevel_router if 'router' in group_names else 5 }}"
