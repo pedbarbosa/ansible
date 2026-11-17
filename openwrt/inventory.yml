@@ -3,8 +3,11 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  # add_host only edits the in-memory inventory, never a device, yet always
+  # reports "changed" - silence that so the recap only counts real changes.
   tasks:
     - name: openwrt - Register router
+      changed_when: false
       add_host:
         name: gateway
         ansible_host: "{{ openwrt_router_host }}"
@@ -14,6 +17,7 @@
           - router
 
     - name: openwrt - Register APs
+      changed_when: false
       add_host:
         name: "{{ item.name }}"
         ansible_host: "{{ item.host }}"

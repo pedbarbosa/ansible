@@ -13,8 +13,3 @@
       community.openwrt.apk:
         name: "{{ openwrt_packages | join(',') }}"
         state: present
-
-    - name: openwrt - Restart uhttpd
-      community.openwrt.service:
-        name: uhttpd
-        state: restarted
