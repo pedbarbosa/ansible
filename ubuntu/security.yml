@@ -12,16 +12,6 @@
         components: main
         signed_by: https://packages.cisofy.com/keys/cisofy-software-public.key
 
-    # The old key sat in trusted.gpg.d, which trusts it for every repository;
-    # the deb822 repo above now pins its own copy under /etc/apt/keyrings.
-    - name: lynis - remove old one-line repo file and globally trusted key
-      file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - /etc/apt/sources.list.d/cisofy-lynis.list
-        - /etc/apt/trusted.gpg.d/cisofy-key.asc
-
     - name: security - check if required packages are installed
       apt:
         name: acct, apt-listchanges, apt-show-versions, auditd, debsums, fail2ban, libpam-tmpdir, lynis, needrestart, sysstat

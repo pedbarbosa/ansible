@@ -13,8 +13,6 @@
         state: latest
         update_cache: yes
 
-    # Downloads the key to /etc/apt/keyrings/docker.asc - the same path the old
-    # get_url task used, so there's no old key to clean up here.
     - name: docker - add repository
       ansible.builtin.deb822_repository:
         name: docker
@@ -24,11 +22,6 @@
         components: stable
         architectures: amd64
         signed_by: https://download.docker.com/linux/ubuntu/gpg
-
-    - name: docker - remove old one-line repository file
-      file:
-        path: /etc/apt/sources.list.d/download_docker_com_linux_ubuntu.list
-        state: absent
 
     - name: docker - install packages
       apt:

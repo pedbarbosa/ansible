@@ -83,9 +83,10 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   put keys in `/etc/apt/trusted.gpg.d/`, which trusts them for every repo.
 - The file names come from `name`, lowercased with `_`/spaces turned into
   `-` (`docker` → `docker.sources`, `/etc/apt/keyrings/docker.asc`).
-- Each repo task is followed by one that deletes the old `.list` (and the
-  old `trusted.gpg.d` key, where there was one) it replaced. Docker's
-  old key path is the same as the new one, so it isn't deleted.
+- There are no cleanup tasks for the old `.list` files or `trusted.gpg.d`
+  keys these replaced: the one server they existed on has been migrated.
+  A host still carrying them needs them removed by hand (or via
+  `apt modernize-sources`), or apt will see those repos twice.
 
 ## Agent execution constraints
 

@@ -12,16 +12,6 @@
         components: "ubuntu-{{ ansible_facts['distribution_release'] }}"
         signed_by: https://ose-repo.syslog-ng.com/apt/syslog-ng-ose-pub.asc
 
-    # The old key sat in trusted.gpg.d, which trusts it for every repository;
-    # the deb822 repo above now pins its own copy under /etc/apt/keyrings.
-    - name: syslog-ng - remove old one-line repo file and globally trusted key
-      file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - /etc/apt/sources.list.d/syslog-ng-ose.list
-        - /etc/apt/trusted.gpg.d/syslog-ng-key.asc
-
     - name: syslog-ng - ensure rsyslog is absent
       apt:
         name: rsyslog
