@@ -138,12 +138,13 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   `ansible.builtin`/`community.general` modules — it's shell-based
   (`community.openwrt.apk`/`uci`/`service`/`file`/`command`, etc.) so it
   works without Python installed on the router/APs.
-- This is the repo's first external collection, so nothing else here does
-  `ansible-galaxy collection install` — `run.sh` only bootstraps ansible
-  itself plus SSH/sudoers for the ubuntu.yml/mac.yml localhost targets, and
-  deliberately doesn't touch openwrt.yml (the router/APs aren't the machine
-  running Ansible). Install `requirements.yml` manually, same one-time step
-  as copying `local/secrets.yml.example`.
+- This is the repo's first external collection. `run.sh` installs
+  `requirements.yml` via `ansible-galaxy collection install -r` right after
+  ensuring Ansible itself is present (a no-op when already satisfied), so a
+  fresh control machine is ready for `openwrt.yml` after one `run.sh`.
+  It still doesn't run or otherwise touch `openwrt.yml` (the router/APs
+  aren't the machine running Ansible). Any new collection a playbook needs
+  goes in `requirements.yml`, not a separate install step.
 - When bumping the version pin in `requirements.yml`, check the collection's
   actual GitHub *tags/releases* (or `galaxy.yml` at that tag), not the
   version in its `main` branch's `galaxy.yml` — `main` bumps the version
