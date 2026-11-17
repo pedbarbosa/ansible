@@ -72,10 +72,6 @@
         enabled: no
       when: "'postfix.service' in ansible_facts['services']"
 
-    - name: slack-notify - read secrets from file
-      include_vars:
-        file: ../local/secrets.yml
-
     - name: slack-notify - ensure config directory exists
       file:
         path: /etc/slack-notify
