@@ -24,6 +24,14 @@
         state: present
         update_cache: true
 
+    # deb822_repository (docker.yml, security.yml, syslog-ng.yml) fails without
+    # python3-debian, even in check mode, so install it during dry runs too.
+    - name: ubuntu - ensure python3-debian is installed for deb822_repository
+      apt:
+        name: python3-debian
+        state: present
+      check_mode: false
+
     - name: bash - update bashrc
       copy:
         src: files/bash.bashrc

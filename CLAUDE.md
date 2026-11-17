@@ -43,7 +43,8 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
 - `ansible.builtin.command`/`shell`/`uri` tasks are **skipped** under `-C`
   check mode unless `check_mode: false` is set. This repo already forces a
   few tasks to always run (the `uri` release lookups in `ubuntu/pms.yml`,
-  the `packaging` bootstrap in `mac/default.yml`) because later tasks in
+  the `packaging` bootstrap in `mac/default.yml`, the `python3-debian`
+  install in `ubuntu/default.yml`) because later tasks in
   the same play depend on their result to evaluate correctly in check
   mode. Forcing a task like this means it has real side effects even
   during a dry run — only do it for idempotent, non-destructive
@@ -65,6 +66,26 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
     `.deb`) will fail with a missing-file error unless the `get_url`
     task is also forced with `check_mode: false` so the download
     actually happens.
+  - `deb822_repository` fails outright without `python3-debian` on the
+    target, even under `-C` (ansible-core 2.19 has no option to install it
+    for you), so `ubuntu/default.yml` installs it with `check_mode: false`.
+
+## Ubuntu apt repositories
+
+- Third-party repos (Docker, Lynis, syslog-ng) use
+  `ansible.builtin.deb822_repository` (`.sources` files), not
+  `apt_repository` or a copied `.list`. `apt_repository` only reads one-line
+  `.list` files, so mixing the two re-creates a `.list` beside the
+  `.sources` and apt sees every repo twice — or errors outright if their
+  `Signed-By` values differ.
+- Give `signed_by` the key's URL: the module downloads it to
+  `/etc/apt/keyrings/<name>.asc|.gpg` and pins it to that repo only. Never
+  put keys in `/etc/apt/trusted.gpg.d/`, which trusts them for every repo.
+- The file names come from `name`, lowercased with `_`/spaces turned into
+  `-` (`docker` → `docker.sources`, `/etc/apt/keyrings/docker.asc`).
+- Each repo task is followed by one that deletes the old `.list` (and the
+  old `trusted.gpg.d` key, where there was one) it replaced. Docker's
+  old key path is the same as the new one, so it isn't deleted.
 
 ## Agent execution constraints
 

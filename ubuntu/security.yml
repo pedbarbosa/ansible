@@ -3,23 +3,24 @@
   become: yes
   become_user: root
   tasks:
-    - name: lynis - check if cisofy key is set up
-      stat:
-        path: /etc/apt/trusted.gpg.d/cisofy-key.asc
-      register: cisofy_key_exists
-      changed_when: not cisofy_key_exists.stat.exists
-      notify: get_cisofy_key
-
-    - name: lynis - flush handlers
-      meta: flush_handlers
-
     - name: lynis - set cisofy repo
-      copy:
-        src: files/cisofy-lynis.list
-        dest: /etc/apt/sources.list.d/cisofy-lynis.list
-        owner: root
-        group: root
-        mode: 0644
+      ansible.builtin.deb822_repository:
+        name: cisofy-lynis
+        types: deb
+        uris: https://packages.cisofy.com/community/lynis/deb/
+        suites: stable
+        components: main
+        signed_by: https://packages.cisofy.com/keys/cisofy-software-public.key
+
+    # The old key sat in trusted.gpg.d, which trusts it for every repository;
+    # the deb822 repo above now pins its own copy under /etc/apt/keyrings.
+    - name: lynis - remove old one-line repo file and globally trusted key
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/apt/sources.list.d/cisofy-lynis.list
+        - /etc/apt/trusted.gpg.d/cisofy-key.asc
 
     - name: security - check if required packages are installed
       apt:
@@ -69,11 +70,4 @@
         dest: /etc/modprobe.d/security-hardening.conf
         owner: root
         group: root
-        mode: 0644
-
-  handlers:
-    - name: get_cisofy_key
-      ansible.builtin.get_url:
-        url: https://packages.cisofy.com/keys/cisofy-software-public.key
-        dest: /etc/apt/trusted.gpg.d/cisofy-key.asc
         mode: 0644
