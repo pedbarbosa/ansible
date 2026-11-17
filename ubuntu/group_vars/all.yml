@@ -1,3 +1,9 @@
+# Pin the system Python instead of letting discovery pick a versioned binary
+# (e.g. python3.14) and warn that it may change. The apt-installed modules
+# the playbooks rely on (python3-debian, python3-docker, python3-requests)
+# live there.
+ansible_python_interpreter: /usr/bin/python3
+
 zsh_is_mac: false
 
 zsh_plugins:

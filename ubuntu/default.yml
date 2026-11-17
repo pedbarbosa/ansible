@@ -3,20 +3,36 @@
   become: yes
   become_user: root
   tasks:
-    - name: ubuntu - Upgrade all outdated packages
+    - name: ubuntu - read secrets from file
+      include_vars:
+        file: ../local/secrets.yml
+
+    - name: ubuntu - set timezone
+      community.general.timezone:
+        name: "{{ timezone }}"
+
+    - name: ubuntu - upgrade all outdated packages
       apt:
         upgrade: dist
         update_cache: true
         autoremove: yes
         autoclean: yes
 
-    - name: ubuntu - Check if base packages are installed
+    - name: ubuntu - check if base packages are installed
       apt:
         name: bash-completion, curl, ethtool, git, iftop, iotop, lsof, ncdu, net-tools, openssh-server, plocate, python3-requests, rsync, wget
         state: present
         update_cache: true
 
-    - name: bash - Update bashrc
+    # deb822_repository (docker.yml, security.yml, syslog-ng.yml) fails without
+    # python3-debian, even in check mode, so install it during dry runs too.
+    - name: ubuntu - ensure python3-debian is installed for deb822_repository
+      apt:
+        name: python3-debian
+        state: present
+      check_mode: false
+
+    - name: bash - update bashrc
       copy:
         src: files/bash.bashrc
         dest: /etc/bash.bashrc
@@ -24,7 +40,7 @@
         group: root
         mode: 0644
 
-    - name: bash - Update MOTD
+    - name: bash - update MOTD
       copy:
         src: "{{ item }}"
         dest: /etc/update-motd.d/
@@ -36,15 +52,7 @@
         - "files/89-docker-info"
       notify: Update MOTD
 
-    - name: bash - Disable MOTD news
-      ansible.builtin.lineinfile:
-        path: /etc/default/motd-news
-        regexp: "^ENABLED="
-        line: "ENABLED=0"
-        state: present
-      notify: Update MOTD
-
-    - name: ssh - Configure service
+    - name: ssh - configure service
       copy:
         src: files/sshd_config
         dest: /etc/ssh/sshd_config
@@ -53,7 +61,7 @@
         mode: 0644
       notify: Restart ssh
 
-    - name: Configure sysctl.conf
+    - name: sysctl - configure sysctl.conf
       copy:
         src: files/sysctl.conf
         dest: /etc/sysctl.conf
@@ -62,21 +70,17 @@
         mode: 0644
       notify: Reload sysctl
 
-    - name: postfix - Gather service facts
+    - name: postfix - gather service facts
       service_facts:
 
-    - name: postfix - Ensure service is disabled and stopped
+    - name: postfix - ensure service is disabled and stopped
       service:
         name: postfix
         state: stopped
         enabled: no
       when: "'postfix.service' in ansible_facts['services']"
 
-    - name: slack-notify - Read secrets from file
-      include_vars:
-        file: ../local/secrets.yml
-
-    - name: slack-notify - Ensure config directory exists
+    - name: slack-notify - ensure config directory exists
       file:
         path: /etc/slack-notify
         state: directory
@@ -84,7 +88,7 @@
         group: root
         mode: 0755
 
-    - name: slack-notify - Configure webhook file
+    - name: slack-notify - configure webhook file
       copy:
         content: "{{ slack_notify_webhook_url }}\n"
         dest: /etc/slack-notify/webhook
@@ -92,7 +96,7 @@
         group: root
         mode: 0644
 
-    - name: slack-notify - Install script
+    - name: slack-notify - install script
       copy:
         src: files/slack-notify
         dest: /usr/local/bin/slack-notify

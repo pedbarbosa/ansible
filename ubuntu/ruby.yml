@@ -3,24 +3,24 @@
   become: yes
   become_user: root
   tasks:
-  - name: ruby - Ensure ruby from apt is not present
-    apt:
-      name: ruby
-      state: absent
-      update_cache: true
-  - name: ruby - Install libffi and libyaml development packages
-    apt:
-      name: libffi-dev, libyaml-dev
-      state: present
-      update_cache: true
+    - name: ruby - ensure ruby from apt is not present
+      apt:
+        name: ruby
+        state: absent
+        update_cache: true
+
+    - name: ruby - install libffi and libyaml development packages
+      apt:
+        name: libffi-dev, libyaml-dev
+        state: present
+        update_cache: true
 
 - hosts: all
   tasks:
-  - name: ruby - Install rbenv
-    ansible.builtin.shell: >
-      curl -fsSL
-      https://github.com/rbenv/rbenv-installer/raw/HEAD/bin/rbenv-installer
-      | bash
-    args:
-      creates: "{{ ansible_facts['env']['HOME'] }}/.rbenv"
-
+    - name: ruby - install rbenv
+      ansible.builtin.shell: >
+        curl -fsSL
+        https://github.com/rbenv/rbenv-installer/raw/HEAD/bin/rbenv-installer
+        | bash
+      args:
+        creates: "{{ ansible_facts['env']['HOME'] }}/.rbenv"
