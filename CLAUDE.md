@@ -194,9 +194,13 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   real AP names never need to appear in the repo as `host_vars/<name>.yml`
   filenames — adding a new physical AP means adding/reusing a `profile` in
   secrets and, if its hardware is new, a new `ap_<profile>.yml`.
-  `timezone`/`zonename` are also secrets (`openwrt_timezone`/
-  `openwrt_zonename`) even though they're low-sensitivity, per explicit
-  request rather than the IP/hostname reasoning above.
+  `zonename` reuses the IANA `timezone` secret from `ubuntu/default.yml`
+  (a secret despite being low-sensitivity, per explicit request rather than
+  the IP/hostname reasoning above). The POSIX `timezone` string isn't a
+  secret of its own: `openwrt_timezone` in `group_vars/all/vars.yml`
+  derives it from `timezone` by reading the last line (the POSIX TZ footer)
+  of `/usr/share/zoneinfo/<zone>` on the controller via a `pipe` lookup,
+  so the two can't drift and DST rules come out right.
 - `openwrt/uhttpd.yml` (`/etc/config/uhttpd`) is a single static template
   (`openwrt/files/uhttpd.conf`, no per-host variables) since the only
   difference across the router/APs was the cert `defaults` section's `days`
