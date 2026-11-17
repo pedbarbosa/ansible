@@ -3,47 +3,47 @@
   become: yes
   become_user: root
   tasks:
-    - name: zsh - check if installed
-      apt:
-        name: zsh
-        state: present
+  - name: zsh - Check if installed
+    apt:
+      name: zsh
+      state: present
 
-    - name: zsh - read secrets from file
-      include_vars:
-        file: ../local/secrets.yml
+  - name: zsh - Read secrets from file
+    include_vars:
+      file: ../local/secrets.yml
 
-    - name: zsh - set default shell
-      user:
-        name: "{{ main_user_account }}"
-        shell: /bin/zsh
+  - name: zsh - Set default shell
+    user:
+      name: "{{ main_user_account }}"
+      shell: /bin/zsh
 
 - hosts: all
   tasks:
-    - name: zsh - configure zshrc for user
+    - name: zsh - Configure zshrc for user
       template:
         src: files/zshrc.j2
         dest: ~/.zshrc
 
-    - name: zsh - configure oh-my-zsh for user
+    - name: zsh - Configure oh-my-zsh for user
       git:
         repo: 'https://github.com/robbyrussell/oh-my-zsh.git'
         dest: ~/.oh-my-zsh
         update: yes
 
-    - name: zsh - install Powerlevel10k for OMZ
+    - name: zsh - Install Powerlevel10k for OMZ
       ansible.builtin.git:
         repo: 'https://github.com/romkatv/powerlevel10k.git'
         dest: ~/.oh-my-zsh/custom/themes/powerlevel10k
         depth: 1
         update: yes
 
-    - name: zsh - configure fzf for user
+    - name: zsh - Configure fzf for user
       git:
         repo: 'https://github.com/junegunn/fzf.git'
         dest: ~/.fzf
         update: yes
       register: fzf
 
-    - name: zsh - install fzf on user
+    - name: zsh - Install fzf on user
       command: chdir=~/.fzf ./install --key-bindings --completion --update-rc
       when: fzf.changed

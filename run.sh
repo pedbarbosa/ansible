@@ -39,10 +39,6 @@ if ! command -v ansible &> /dev/null; then
     fi
 fi
 
-# Install the collections listed in requirements.yml (a no-op once installed)
-echo "Installing Ansible collections from 'requirements.yml' ..."
-ansible-galaxy collection install -r requirements.yml
-
 # Check if SSH server is set up
 if ! command -v systemctl is-active ssh.service &> /dev/null; then
     echo "SSH isn't active, installing ..."

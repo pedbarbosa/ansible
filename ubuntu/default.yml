@@ -3,28 +3,20 @@
   become: yes
   become_user: root
   tasks:
-    - name: ubuntu - read secrets from file
-      include_vars:
-        file: ../local/secrets.yml
-
-    - name: ubuntu - set timezone
-      community.general.timezone:
-        name: "{{ timezone }}"
-
-    - name: ubuntu - upgrade all outdated packages
+    - name: ubuntu - Upgrade all outdated packages
       apt:
         upgrade: dist
         update_cache: true
         autoremove: yes
         autoclean: yes
 
-    - name: ubuntu - check if base packages are installed
+    - name: ubuntu - Check if base packages are installed
       apt:
         name: bash-completion, curl, ethtool, git, iftop, iotop, lsof, ncdu, net-tools, openssh-server, plocate, python3-requests, rsync, wget
         state: present
         update_cache: true
 
-    - name: bash - update bashrc
+    - name: bash - Update bashrc
       copy:
         src: files/bash.bashrc
         dest: /etc/bash.bashrc
@@ -32,7 +24,7 @@
         group: root
         mode: 0644
 
-    - name: bash - update MOTD
+    - name: bash - Update MOTD
       copy:
         src: "{{ item }}"
         dest: /etc/update-motd.d/
@@ -44,7 +36,15 @@
         - "files/89-docker-info"
       notify: Update MOTD
 
-    - name: ssh - configure service
+    - name: bash - Disable MOTD news
+      ansible.builtin.lineinfile:
+        path: /etc/default/motd-news
+        regexp: "^ENABLED="
+        line: "ENABLED=0"
+        state: present
+      notify: Update MOTD
+
+    - name: ssh - Configure service
       copy:
         src: files/sshd_config
         dest: /etc/ssh/sshd_config
@@ -53,7 +53,7 @@
         mode: 0644
       notify: Restart ssh
 
-    - name: sysctl - configure sysctl.conf
+    - name: Configure sysctl.conf
       copy:
         src: files/sysctl.conf
         dest: /etc/sysctl.conf
@@ -62,17 +62,21 @@
         mode: 0644
       notify: Reload sysctl
 
-    - name: postfix - gather service facts
+    - name: postfix - Gather service facts
       service_facts:
 
-    - name: postfix - ensure service is disabled and stopped
+    - name: postfix - Ensure service is disabled and stopped
       service:
         name: postfix
         state: stopped
         enabled: no
       when: "'postfix.service' in ansible_facts['services']"
 
-    - name: slack-notify - ensure config directory exists
+    - name: slack-notify - Read secrets from file
+      include_vars:
+        file: ../local/secrets.yml
+
+    - name: slack-notify - Ensure config directory exists
       file:
         path: /etc/slack-notify
         state: directory
@@ -80,7 +84,7 @@
         group: root
         mode: 0755
 
-    - name: slack-notify - configure webhook file
+    - name: slack-notify - Configure webhook file
       copy:
         content: "{{ slack_notify_webhook_url }}\n"
         dest: /etc/slack-notify/webhook
@@ -88,7 +92,7 @@
         group: root
         mode: 0644
 
-    - name: slack-notify - install script
+    - name: slack-notify - Install script
       copy:
         src: files/slack-notify
         dest: /usr/local/bin/slack-notify

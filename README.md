@@ -4,7 +4,7 @@ Personal Ansible configuration for provisioning and configuring machines — an 
 
 ## Layout
 
-- `run.sh` — bootstrap + entry point for **both Ubuntu and macOS**. Installs Ansible if missing (via `apt` on Ubuntu, via Homebrew on macOS — installing Homebrew itself first if it's missing), installs the collections in `requirements.yml` (currently just `community.openwrt`), sets up an SSH key and adds it to `authorized_keys`, registers `127.0.0.1` as an Ansible host, grants the current user passwordless sudo, then runs the OS-appropriate playbook (`ubuntu.yml` or `mac.yml`) in check mode (dry run).
+- `run.sh` — bootstrap + entry point for **both Ubuntu and macOS**. Installs Ansible if missing (via `apt` on Ubuntu, via Homebrew on macOS — installing Homebrew itself first if it's missing), sets up an SSH key and adds it to `authorized_keys`, registers `127.0.0.1` as an Ansible host, grants the current user passwordless sudo, then runs the OS-appropriate playbook (`ubuntu.yml` or `mac.yml`) in check mode (dry run).
 - `ubuntu.yml` / `ubuntu/` — playbooks for Ubuntu: base packages & OS hardening, Python (via `pyenv`), Ruby (via `rbenv`), Docker, Samba, security tooling (`lynis`, `fail2ban`, `auditd`, sysctl/limits hardening), `syslog-ng`, `collectd` monitoring, `logrotate`, Vim (`vim-plug`), and Zsh (`oh-my-zsh`, Powerlevel10k, `fzf`).
 - `mac.yml` / `mac/` — playbooks for macOS: base packages (via Homebrew), `.gitconfig`, Python, Ruby, Vim, and Zsh.
 - `openwrt.yml` / `openwrt/` — playbooks for the OpenWrt router + APs: package management (upgrade + shared/router-only package sets), `collectd` monitoring, `/etc/config/system` (hostname, timezone, logging, NTP, AP LEDs), `/etc/config/uhttpd` (LuCI web server; cert generation excluded — certs are injected via a separate Let's Encrypt cron process), `/etc/config/luci` (LuCI web UI settings, identical across all hosts), `/etc/config/dropbear` (SSH daemon, identical across all hosts), `/etc/config/adblock`/`/etc/config/banip` (router only), `/etc/config/firewall` (AP zones committed directly; the router's zones/rules/port-forwards live in `local/router-firewall.conf` since they're too revealing to commit even sanitised), `/etc/config/dhcp` (dnsmasq/odhcpd; router-vs-AP structure driven by `group_vars`, with a `local/router-dhcp-extra.conf` hook reserved for the router's static DHCP leases), and `/etc/config/network` (VLANs/bridges/WAN; one template per device profile under `openwrt/files/` — `network.router.conf` / `network.ap_dual_led.conf` / `network.ap_wan_led.conf`, targeted by the same profile groups used for LEDs, never a hardcoded AP hostname — since the physical port layout differs per hardware model, not just router-vs-AP; deliberately has no restart handler, see `openwrt/network.yml`), via the `community.openwrt` collection. Wifi configuration will follow.
@@ -28,9 +28,10 @@ ansible-playbook -v mac.yml      # macOS
 
 ### OpenWrt
 
-`run.sh` doesn't configure the router/APs — they're remote devices, not the machine running Ansible — but it does install the `community.openwrt` collection from `requirements.yml` that these playbooks need. There's no committed inventory file either: `openwrt/inventory.yml` reads the router/AP addresses out of `local/secrets.yml` and registers them via `add_host` at runtime, so network topology never lands in the repo. After `run.sh`, run directly:
+`run.sh` doesn't cover the router/APs — they're remote devices, not the machine running Ansible. There's no committed inventory file either: `openwrt/inventory.yml` reads the router/AP addresses out of `local/secrets.yml` and registers them via `add_host` at runtime, so network topology never lands in the repo. Install the collection once, then run directly:
 
 ```
+ansible-galaxy collection install -r requirements.yml
 ansible-playbook -CD openwrt.yml   # dry run
 ansible-playbook -v openwrt.yml    # apply
 ```

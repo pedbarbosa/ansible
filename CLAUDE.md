@@ -138,13 +138,12 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   `ansible.builtin`/`community.general` modules — it's shell-based
   (`community.openwrt.apk`/`uci`/`service`/`file`/`command`, etc.) so it
   works without Python installed on the router/APs.
-- This is the repo's first external collection. `run.sh` installs
-  `requirements.yml` via `ansible-galaxy collection install -r` right after
-  ensuring Ansible itself is present (a no-op when already satisfied), so a
-  fresh control machine is ready for `openwrt.yml` after one `run.sh`.
-  It still doesn't run or otherwise touch `openwrt.yml` (the router/APs
-  aren't the machine running Ansible). Any new collection a playbook needs
-  goes in `requirements.yml`, not a separate install step.
+- This is the repo's first external collection, so nothing else here does
+  `ansible-galaxy collection install` — `run.sh` only bootstraps ansible
+  itself plus SSH/sudoers for the ubuntu.yml/mac.yml localhost targets, and
+  deliberately doesn't touch openwrt.yml (the router/APs aren't the machine
+  running Ansible). Install `requirements.yml` manually, same one-time step
+  as copying `local/secrets.yml.example`.
 - When bumping the version pin in `requirements.yml`, check the collection's
   actual GitHub *tags/releases* (or `galaxy.yml` at that tag), not the
   version in its `main` branch's `galaxy.yml` — `main` bumps the version
@@ -194,13 +193,9 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   real AP names never need to appear in the repo as `host_vars/<name>.yml`
   filenames — adding a new physical AP means adding/reusing a `profile` in
   secrets and, if its hardware is new, a new `ap_<profile>.yml`.
-  `zonename` reuses the IANA `timezone` secret from `ubuntu/default.yml`
-  (a secret despite being low-sensitivity, per explicit request rather than
-  the IP/hostname reasoning above). The POSIX `timezone` string isn't a
-  secret of its own: `openwrt_timezone` in `group_vars/all/vars.yml`
-  derives it from `timezone` by reading the last line (the POSIX TZ footer)
-  of `/usr/share/zoneinfo/<zone>` on the controller via a `pipe` lookup,
-  so the two can't drift and DST rules come out right.
+  `timezone`/`zonename` are also secrets (`openwrt_timezone`/
+  `openwrt_zonename`) even though they're low-sensitivity, per explicit
+  request rather than the IP/hostname reasoning above.
 - `openwrt/uhttpd.yml` (`/etc/config/uhttpd`) is a single static template
   (`openwrt/files/uhttpd.conf`, no per-host variables) since the only
   difference across the router/APs was the cert `defaults` section's `days`
