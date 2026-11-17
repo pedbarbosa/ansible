@@ -3,16 +3,16 @@
   become: yes
   become_user: root
   tasks:
-    - name: samba - Check if installed
+    - name: samba - check if installed
       apt:
         name: samba
         state: present
 
-    - name: samba - Read secrets from file
+    - name: samba - read secrets from file
       include_vars:
         file: ../local/secrets.yml
 
-    - name: samba - Create share user
+    - name: samba - create share user
       user:
         name: "{{ share_user_account }}"
         shell: /usr/sbin/nologin
@@ -20,7 +20,7 @@
         password_lock: yes
         state: present
 
-    - name: samba - Configure smb.conf
+    - name: samba - configure smb.conf
       template:
         src: files/smb.conf
         dest: /etc/samba/smb.conf
@@ -29,7 +29,7 @@
         mode: 0644
       notify: samba - Restart
 
-    - name: samba - Configure shared permissions
+    - name: samba - configure shared permissions
       template:
         src: files/smb_shared-perms.conf
         dest: /etc/samba/shared-perms.conf

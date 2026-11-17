@@ -3,12 +3,12 @@
   become: yes
   become_user: root
   tasks:
-    - name: logrotate - Check if installed
+    - name: logrotate - check if installed
       apt:
         name: logrotate
         state: present
 
-    - name: logrotate - Configure service
+    - name: logrotate - configure service
       copy:
         src: files/logrotate.conf
         dest: /etc/logrotate.conf
@@ -20,7 +20,7 @@
     # No system postfix package/service is installed on this host (see ubuntu/default.yml);
     # this rotates /var/log/maillog for a postfix Docker container that bind-mounts its
     # maillog to this path.
-    - name: logrotate - Configure logrotate for postfix
+    - name: logrotate - configure logrotate for postfix
       copy:
         src: files/logrotate-postfix.conf
         dest: /etc/logrotate.d/postfix-remote

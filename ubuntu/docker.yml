@@ -3,40 +3,40 @@
   become: yes
   become_user: root
   tasks:
-    - name: docker - Read secrets from file
+    - name: docker - read secrets from file
       include_vars:
         file: ../local/secrets.yml
 
-    - name: docker - Package requirements
+    - name: docker - package requirements
       apt:
         name: ca-certificates, curl
         state: latest
         update_cache: yes
 
-    - name: docker - Check that keyrings folder exists
+    - name: docker - check that keyrings folder exists
       file:
         path: /etc/apt/keyrings
         state: directory
         mode: 0755
 
-    - name: docker - Add GPG apt key
+    - name: docker - add GPG apt key
       ansible.builtin.get_url:
         url: https://download.docker.com/linux/ubuntu/gpg
         dest: /etc/apt/keyrings/docker.asc
         mode: 0644
 
-    - name: docker - Add repository
+    - name: docker - add repository
       ansible.builtin.apt_repository:
         repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_facts['lsb']['codename'] }} stable"
         state: present
 
-    - name: docker - Install packages
+    - name: docker - install packages
       apt:
         name: docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin, python3-docker
         state: latest
         update_cache: yes
 
-    - name: docker - Add user to 'docker' group
+    - name: docker - add user to 'docker' group
       ansible.builtin.user:
         name: "{{ main_user_account }}"
         groups: docker
