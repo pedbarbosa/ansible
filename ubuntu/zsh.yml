@@ -3,19 +3,19 @@
   become: yes
   become_user: root
   tasks:
-  - name: zsh - Check if installed
-    apt:
-      name: zsh
-      state: present
+    - name: zsh - Check if installed
+      apt:
+        name: zsh
+        state: present
 
-  - name: zsh - Read secrets from file
-    include_vars:
-      file: ../local/secrets.yml
+    - name: zsh - Read secrets from file
+      include_vars:
+        file: ../local/secrets.yml
 
-  - name: zsh - Set default shell
-    user:
-      name: "{{ main_user_account }}"
-      shell: /bin/zsh
+    - name: zsh - Set default shell
+      user:
+        name: "{{ main_user_account }}"
+        shell: /bin/zsh
 
 - hosts: all
   tasks:

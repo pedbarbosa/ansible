@@ -3,34 +3,34 @@
   become: yes
   become_user: root
   tasks:
-  - name: logrotate - Check if installed
-    apt:
-      name: logrotate
-      state: present
+    - name: logrotate - Check if installed
+      apt:
+        name: logrotate
+        state: present
 
-  - name: logrotate - Configure service
-    copy:
-      src: files/logrotate.conf
-      dest: /etc/logrotate.conf
-      owner: root
-      group: root
-      mode: 0644
-    notify: logrotate - Restart 
+    - name: logrotate - Configure service
+      copy:
+        src: files/logrotate.conf
+        dest: /etc/logrotate.conf
+        owner: root
+        group: root
+        mode: 0644
+      notify: logrotate - Restart
 
-  # No system postfix package/service is installed on this host (see ubuntu/default.yml);
-  # this rotates /var/log/maillog for a postfix Docker container that bind-mounts its
-  # maillog to this path.
-  - name: logrotate - Configure logrotate for postfix
-    copy:
-      src: files/logrotate-postfix.conf
-      dest: /etc/logrotate.d/postfix-remote
-      owner: root
-      group: root
-      mode: 0644
-    notify: logrotate - Restart
+    # No system postfix package/service is installed on this host (see ubuntu/default.yml);
+    # this rotates /var/log/maillog for a postfix Docker container that bind-mounts its
+    # maillog to this path.
+    - name: logrotate - Configure logrotate for postfix
+      copy:
+        src: files/logrotate-postfix.conf
+        dest: /etc/logrotate.d/postfix-remote
+        owner: root
+        group: root
+        mode: 0644
+      notify: logrotate - Restart
+
   handlers:
-  - name: logrotate - Restart
-    service:
-      name: logrotate.timer
-      state: restarted
-
+    - name: logrotate - Restart
+      service:
+        name: logrotate.timer
+        state: restarted
