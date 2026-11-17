@@ -1,4 +1,8 @@
 ansible_user: root
+# Dropbear has no sftp-server, and modern scp uses the SFTP protocol too, so
+# Ansible's default sftp -> scp -> piped fallback warns twice per task before
+# piped works. Go straight to piped.
+ansible_ssh_transfer_method: piped
 
 openwrt_packages_common:
   - avahi-dbus-daemon
