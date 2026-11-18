@@ -48,8 +48,10 @@
         loop_var: dotfile_user
       register: vimrc
 
+    # Batch mode (-es): without a terminal, a normal vim stops on any vimrc
+    # error at "Press ENTER" and the task hangs forever
     - name: vim - install plugins when vimrc changed
-      command: vim +'PlugInstall --sync' +qa
+      command: vim -es -u ~/.vimrc -i NONE +'PlugInstall --sync' +qa
       become: yes
       become_user: "{{ item.dotfile_user }}"
       loop: "{{ vimrc.results }}"
