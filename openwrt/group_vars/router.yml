@@ -22,7 +22,6 @@ openwrt_collectd_ping_hosts:
   - "{{ collectd_ping_host3 }}"
   - "{{ collectd_ping_host4 }}"
   - "{{ collectd_ping_host5 }}"
-openwrt_collectd_ping_interval: 30
 
 openwrt_collectd_dns_interfaces:
   - br-lan

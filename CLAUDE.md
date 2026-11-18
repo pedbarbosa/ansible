@@ -46,8 +46,7 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   the starship release lookup, version check and download in
   `ubuntu/zsh.yml`, the `~/.vim/autoload` folder in `mac/vim.yml` and
   `ubuntu/vim.yml`, the `packaging` bootstrap in `mac/default.yml`, the
-  `python3-debian` install in `ubuntu/default.yml`, the `/etc/collectd.d`
-  directory in `openwrt/collectd.yml`) because later tasks in
+  `python3-debian` install in `ubuntu/default.yml`) because later tasks in
   the same play depend on their result to evaluate correctly in check
   mode. Forcing a task like this means it has real side effects even
   during a dry run — only do it for idempotent, non-destructive
@@ -210,17 +209,14 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   plugins disabled, everything else commented out) is kept for reference at
   `openwrt/reference/collectd.conf.upstream-default`, which isn't deployed
   by any playbook.
-  - The one exception is the router's `ping` plugin, deployed as raw
-    collectd config (`openwrt/files/collectd.d/ping.conf`) into
-    `openwrt_collectd_include_dir` (`/etc/collectd.d`), which `collectd.conf`
-    points the UCI `Include` option at. `/etc/init.d/collectd` renders a UCI
-    `config plugin` section as a bare `LoadPlugin <name>`, so it can't set a
-    per-plugin reporting `Interval` (the UCI ping `Interval` option is the
-    time between pings). Ping reports every 30s while everything else stays
-    on the global 10s. Don't also add a UCI `config plugin 'ping'` section,
-    or the plugin gets loaded twice. Anything the generator handles
-    natively (including `mqtt`, via `config mqtt_block` sections) stays in
-    UCI.
+  - All collectd config stays in that one UCI file: no raw collectd config
+    or `Include` directories. `/etc/init.d/collectd` renders each
+    `config plugin` section as a bare `LoadPlugin <name>`, so plugins can't
+    have their own reporting `Interval` and everything reports on the
+    global one (the UCI ping `Interval` option is the time between pings,
+    not how often results are reported). The generator also handles
+    nested blocks for some plugins natively, e.g. `mqtt` via
+    `config mqtt_block` sections.
 - `openwrt/system.yml` (`/etc/config/system`) covers hostname, timezone,
   logging, and NTP, all driven by `group_vars` (router vs. AP) same as the
   playbooks above — plus AP-only LED sections, which are genuinely
