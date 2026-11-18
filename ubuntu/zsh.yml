@@ -86,10 +86,11 @@
         loop_var: dotfile_user
       register: fzf
 
+    # Called by path, not chdir: command changes directory before honouring
+    # check mode, so a dry run fails while the clone above is only simulated
     - name: zsh - install fzf
       command:
-        cmd: ./install --key-bindings --completion --no-update-rc
-        chdir: ~/.fzf
+        cmd: ~/.fzf/install --key-bindings --completion --no-update-rc
       become: yes
       become_user: "{{ item.dotfile_user }}"
       loop: "{{ fzf.results }}"

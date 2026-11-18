@@ -85,11 +85,12 @@
     loop_control:
       loop_var: dotfile_user
     register: fzf
-  # Generates ~/.fzf.zsh, which .zshrc sources
+  # Generates ~/.fzf.zsh, which .zshrc sources. Called by path, not chdir:
+  # command changes directory before honouring check mode, so a dry run fails
+  # while the clone above is only simulated.
   - name: Install fzf
     command:
-      cmd: ./install --key-bindings --completion --no-update-rc
-      chdir: ~/.fzf
+      cmd: ~/.fzf/install --key-bindings --completion --no-update-rc
     environment: "{{ dotfile_env }}"
     become: yes
     become_user: "{{ item.dotfile_user }}"
