@@ -46,7 +46,8 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   the starship release lookup, version check and download in
   `ubuntu/zsh.yml`, the `~/.vim/autoload` folder in `mac/vim.yml` and
   `ubuntu/vim.yml`, the `packaging` bootstrap in `mac/default.yml`, the
-  `python3-debian` install in `ubuntu/default.yml`) because later tasks in
+  `python3-debian` install in `ubuntu/default.yml`, the `/etc/collectd.d`
+  directory in `openwrt/collectd.yml`) because later tasks in
   the same play depend on their result to evaluate correctly in check
   mode. Forcing a task like this means it has real side effects even
   during a dry run — only do it for idempotent, non-destructive
