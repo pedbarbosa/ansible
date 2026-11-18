@@ -8,11 +8,14 @@
         state: present
 
     # The tasks below run once per account in dotfile_users (the login user and root)
+    # Created even in check mode: get_url fails if its destination folder is
+    # missing, so root's first dry run would otherwise always fail
     - name: Ensure .vim/autoload directory exists
       file:
         path: ~/.vim/autoload
         state: directory
         mode: 0750
+      check_mode: false
       become: yes
       become_user: "{{ dotfile_user }}"
       loop: "{{ dotfile_users }}"
@@ -30,7 +33,7 @@
       loop_control:
         loop_var: dotfile_user
 
-    # Downloads only when plug.vim is missing (get_url doesn't re-fetch by default)
+    # Fetches the latest plug.vim each run; only reports changed when it differs
     - name: Install vim-plug
       ansible.builtin.get_url:
         url: https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim

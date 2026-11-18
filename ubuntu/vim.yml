@@ -11,11 +11,14 @@
 # Runs once per account in dotfile_users (the login user and root)
 - hosts: all
   tasks:
+    # Created even in check mode: get_url fails if its destination folder is
+    # missing, so root's first dry run would otherwise always fail
     - name: vim - create autoload directory
       file:
         path: ~/.vim/autoload
         state: directory
         mode: 0775
+      check_mode: false
       become: yes
       become_user: "{{ dotfile_user }}"
       loop: "{{ dotfile_users }}"
