@@ -59,6 +59,7 @@
     git:
       repo: 'https://github.com/robbyrussell/oh-my-zsh.git'
       dest: ~/.oh-my-zsh
+    environment: "{{ dotfile_env }}"
     become: yes
     become_user: "{{ dotfile_user }}"
     loop: "{{ dotfile_users }}"
@@ -77,6 +78,7 @@
     git:
       repo: 'https://github.com/junegunn/fzf.git'
       dest: ~/.fzf
+    environment: "{{ dotfile_env }}"
     become: yes
     become_user: "{{ dotfile_user }}"
     loop: "{{ dotfile_users }}"
@@ -88,6 +90,7 @@
     command:
       cmd: ./install --key-bindings --completion --no-update-rc
       chdir: ~/.fzf
+    environment: "{{ dotfile_env }}"
     become: yes
     become_user: "{{ item.dotfile_user }}"
     loop: "{{ fzf.results }}"

@@ -10,6 +10,13 @@ dotfile_users:
   - "{{ ansible_facts['user_id'] }}"
   - root
 
+# CA bundle and proxy variables from the shell Ansible runs in (e.g. set up by
+# MDM on corporate Macs). sudo drops them, so downloads done as root would fail
+# TLS verification. Tasks that fetch things for each dotfile user pass these
+# back with `environment:`. Ansible skips sudo for the login user, so it's a
+# no-op there.
+dotfile_env: "{{ ansible_facts['env'] | dict2items | selectattr('key', 'match', '(?i).*(SSL_CERT|CA_BUNDLE|CAINFO|CA_CERTS|PROXY)') | items2dict }}"
+
 homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}"
 
 is_corporate: "{{ ansible_facts['hostname'].split('.')[0] not in personal_hostnames }}"
