@@ -5,9 +5,9 @@
   - name: zsh - Read secrets from file
     include_vars:
       file: ../local/secrets.yml
-  - name: Check if zsh is installed
+  - name: Check if zsh and starship are installed
     package:
-      name: [zsh, zsh-completions]
+      name: [zsh, zsh-completions, starship]
       state: present
   - name: Configure .zprofile
     copy:
@@ -18,6 +18,15 @@
     template:
       src: files/zshrc.j2
       dest: "{{ home_dir }}/.zshrc"
+      mode: 0640
+  - name: Ensure ~/.config exists
+    file:
+      path: "{{ home_dir }}/.config"
+      state: directory
+  - name: Configure starship prompt
+    copy:
+      src: files/starship.toml
+      dest: "{{ home_dir }}/.config/starship.toml"
       mode: 0640
   - name: Clone oh-my-zsh git repository
     git:

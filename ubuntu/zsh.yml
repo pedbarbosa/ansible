@@ -3,9 +3,9 @@
   become: yes
   become_user: root
   tasks:
-    - name: zsh - check if installed
+    - name: zsh - check if zsh and starship are installed
       apt:
-        name: zsh
+        name: zsh, starship
         state: present
 
     - name: zsh - read secrets from file
@@ -23,6 +23,16 @@
       template:
         src: files/zshrc.j2
         dest: ~/.zshrc
+
+    - name: zsh - ensure config directory exists for user
+      file:
+        path: ~/.config
+        state: directory
+
+    - name: zsh - configure starship prompt for user
+      copy:
+        src: files/starship.toml
+        dest: ~/.config/starship.toml
 
     - name: zsh - configure oh-my-zsh for user
       git:
