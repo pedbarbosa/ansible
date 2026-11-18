@@ -3,6 +3,7 @@ openwrt_packages_router:
   - luci-app-banip
   - collectd-mod-conntrack
   - collectd-mod-dns
+  - collectd-mod-mqtt
   - collectd-mod-ping
   - collectd-mod-thermal
 
@@ -10,6 +11,7 @@ openwrt_packages_router:
 openwrt_collectd_plugins_router:
   - conntrack
   - dns
+  - mqtt
   - ping
   - thermal
 

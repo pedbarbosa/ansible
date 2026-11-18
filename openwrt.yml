@@ -11,7 +11,9 @@
 # remote access to the device entirely.
 - import_playbook: openwrt/network.yml
 
-# collectd monitoring, reporting back to the same collectd server as ubuntu/collectd.yml
+# collectd monitoring, reporting back to the same collectd server as
+# ubuntu/collectd.yml; the router also pings WAN targets and publishes
+# everything to MQTT for Home Assistant
 - import_playbook: openwrt/collectd.yml
 
 # Hostname, timezone, logging, NTP and (AP-only) LED configuration
