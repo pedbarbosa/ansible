@@ -106,16 +106,6 @@
       loop_control:
         loop_var: dotfile_user
 
-    - name: zsh - remove Powerlevel10k theme, replaced by starship
-      file:
-        path: ~/.oh-my-zsh/custom/themes/powerlevel10k
-        state: absent
-      become: yes
-      become_user: "{{ dotfile_user }}"
-      loop: "{{ dotfile_users }}"
-      loop_control:
-        loop_var: dotfile_user
-
     - name: zsh - configure fzf
       git:
         repo: 'https://github.com/junegunn/fzf.git'
