@@ -34,7 +34,7 @@
       notify: get_vimplug
 
     - name: Install vim plugins
-      command: "vim -esu {{ vimrc }} +PlugUpgrade +qa || true && vim -esu {{ vimrc }} +PlugClean! +qa || true && vim -esu {{ vimrc }} +PlugUpdate +qa || true"
+      command: "vim -es -u {{ vimrc }} -i NONE +'PlugInstall --sync' +qa"
       args:
         creates: "{{ vim_dir }}/plugged"
 
