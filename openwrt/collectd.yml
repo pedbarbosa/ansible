@@ -2,6 +2,19 @@
 - hosts: openwrt
   gather_facts: false
   tasks:
+    - name: openwrt - Create collectd include directory
+      community.openwrt.file:
+        path: "{{ openwrt_collectd_include_dir }}"
+        state: directory
+      when: "'ping' in openwrt_collectd_plugins"
+
+    - name: openwrt - Configure collectd ping
+      community.openwrt.template:
+        src: files/collectd.d/ping.conf
+        dest: "{{ openwrt_collectd_include_dir }}/ping.conf"
+      when: "'ping' in openwrt_collectd_plugins"
+      notify: openwrt - Restart collectd
+
     - name: openwrt - Configure collectd
       community.openwrt.template:
         src: files/collectd.conf

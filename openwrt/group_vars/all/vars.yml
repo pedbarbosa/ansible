@@ -43,6 +43,11 @@ openwrt_collectd_plugins: "{{ openwrt_collectd_plugins_common + (openwrt_collect
 
 openwrt_collectd_server_port: 25826
 
+# Persistent directory for raw collectd config the UCI generator can't
+# express (see files/collectd.d/ping.conf); its default, /tmp/collectd.d,
+# is wiped on reboot
+openwrt_collectd_include_dir: /etc/collectd.d
+
 openwrt_collectd_processes:
   - collectd
   - dnsmasq

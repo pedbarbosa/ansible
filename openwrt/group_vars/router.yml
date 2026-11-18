@@ -3,13 +3,24 @@ openwrt_packages_router:
   - luci-app-banip
   - collectd-mod-conntrack
   - collectd-mod-dns
+  - collectd-mod-ping
   - collectd-mod-thermal
 
 # openwrt/collectd.yml
 openwrt_collectd_plugins_router:
   - conntrack
   - dns
+  - ping
   - thermal
+
+# WAN latency/jitter/loss targets, reusing the server's collectd ping hosts
+openwrt_collectd_ping_hosts:
+  - "{{ collectd_ping_host1 }}"
+  - "{{ collectd_ping_host2 }}"
+  - "{{ collectd_ping_host3 }}"
+  - "{{ collectd_ping_host4 }}"
+  - "{{ collectd_ping_host5 }}"
+openwrt_collectd_ping_interval: 30
 
 openwrt_collectd_dns_interfaces:
   - br-lan
