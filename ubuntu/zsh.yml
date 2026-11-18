@@ -3,10 +3,52 @@
   become: yes
   become_user: root
   tasks:
-    - name: zsh - check if zsh and starship are installed
+    - name: zsh - check if installed
       apt:
-        name: zsh, starship
+        name: zsh
         state: present
+
+    # Starship comes from its GitHub releases, not apt: Ubuntu's package lags
+    # well behind (1.22 vs 1.27 at the time of writing)
+    - name: zsh - get the latest starship release
+      uri:
+        url: https://api.github.com/repos/starship/starship/releases/latest
+        method: GET
+        return_content: yes
+      register: starship_latest
+      check_mode: false
+
+    # Forced in check mode too: it's read-only, and its output is parsed below
+    - name: zsh - get the installed version of starship
+      command: /usr/local/bin/starship --version
+      register: starship_installed
+      failed_when: false
+      changed_when: false
+      check_mode: false
+
+    - name: zsh - extract the starship versions and tarball name
+      set_fact:
+        starship_version: "{{ starship_latest.json.tag_name | regex_replace('^v', '') }}"
+        starship_installed_version: "{{ starship_installed.stdout_lines[0] | default('') | regex_replace('^starship ', '') }}"
+        starship_tarball: "starship-{{ ansible_facts['architecture'] }}-unknown-linux-musl.tar.gz"
+
+    - name: zsh - download the latest starship release if needed
+      get_url:
+        url: "https://github.com/starship/starship/releases/download/v{{ starship_version }}/{{ starship_tarball }}"
+        dest: "/tmp/{{ starship_tarball }}"
+        checksum: "sha256:https://github.com/starship/starship/releases/download/v{{ starship_version }}/{{ starship_tarball }}.sha256"
+      when: starship_installed_version != starship_version
+      check_mode: false
+
+    - name: zsh - install starship if needed
+      unarchive:
+        src: "/tmp/{{ starship_tarball }}"
+        dest: /usr/local/bin
+        remote_src: yes
+        owner: root
+        group: root
+        mode: 0755
+      when: starship_installed_version != starship_version
 
     - name: zsh - read secrets from file
       include_vars:
