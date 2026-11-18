@@ -133,12 +133,14 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   IPs/hostnames out of the repo without a second gitignored file alongside
   `local/secrets.yml`. `group_vars`
   (`all/`, `router.yml`) still apply normally to hosts added this way.
-  - The router's registered hostname is `gateway`, not `router` — Ansible
-    warns ("Found both group and host with same name") if a host is added
-    to a group sharing its exact name. The `router` *group* name stays as
+  - The router's hostname is `router` (`openwrt_hostname`, set on the
+    device by `openwrt/system.yml`). Only its Ansible *inventory* name is
+    `gateway`, which is what plays print (`ok: [gateway]`). Ansible warns
+    ("Found both group and host with same name") if a host is added to a
+    group sharing its exact name, and the `router` *group* name stays as
     is since `group_vars/router.yml` and the `'router' in group_names`
-    checks depend on it; only the host's own name needed to change to
-    avoid the collision. The AP host names (from `openwrt_ap_hosts[].name`
+    checks depend on it. Don't refer to the device itself as `gateway`
+    anywhere else. The AP inventory names (from `openwrt_ap_hosts[].name`
     in secrets, e.g. `ap-upstairs`) don't collide with the `ap` group name,
     so they're unaffected.
 - `openwrt/default.yml` runs an explicit `apk update` as a `pre_task`,
