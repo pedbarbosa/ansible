@@ -53,5 +53,5 @@
       register: fzf
 
     - name: zsh - install fzf on user
-      command: chdir=~/.fzf ./install --key-bindings --completion --update-rc
+      command: chdir=~/.fzf ./install --key-bindings --completion --no-update-rc
       when: fzf.changed
