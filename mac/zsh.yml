@@ -32,11 +32,10 @@
     git:
       repo: 'https://github.com/robbyrussell/oh-my-zsh.git'
       dest: "{{ home_dir }}/.oh-my-zsh"
-  - name: Clone powerlevel10k git repository
-    git:
-      repo: 'https://github.com/romkatv/powerlevel10k.git'
-      dest: "{{ home_dir }}/.oh-my-zsh/custom/themes/powerlevel10k"
-      depth: 1
+  - name: Remove powerlevel10k theme, replaced by starship
+    file:
+      path: "{{ home_dir }}/.oh-my-zsh/custom/themes/powerlevel10k"
+      state: absent
   - name: Clone fzf git repository
     git:
       repo: 'https://github.com/junegunn/fzf.git'

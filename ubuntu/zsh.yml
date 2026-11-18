@@ -40,12 +40,10 @@
         dest: ~/.oh-my-zsh
         update: yes
 
-    - name: zsh - install Powerlevel10k for OMZ
-      ansible.builtin.git:
-        repo: 'https://github.com/romkatv/powerlevel10k.git'
-        dest: ~/.oh-my-zsh/custom/themes/powerlevel10k
-        depth: 1
-        update: yes
+    - name: zsh - remove Powerlevel10k theme, replaced by starship
+      file:
+        path: ~/.oh-my-zsh/custom/themes/powerlevel10k
+        state: absent
 
     - name: zsh - configure fzf for user
       git:
