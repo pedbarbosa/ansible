@@ -2,6 +2,14 @@ home_dir: "{{ ansible_facts['env']['HOME'] }}"
 
 zsh_is_mac: true
 
+# Accounts that get the zsh, Starship and vim setup, so a root shell (sudo -i)
+# or sudo vim feels the same as the login user's. user_id is the account
+# Ansible connects as, so only use this in plays without play-level become
+# (facts gathered under become report root).
+dotfile_users:
+  - "{{ ansible_facts['user_id'] }}"
+  - root
+
 homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}"
 
 is_corporate: "{{ ansible_facts['hostname'].split('.')[0] not in personal_hostnames }}"

@@ -9,34 +9,88 @@
     package:
       name: [zsh, zsh-completions, starship]
       state: present
+  # macOS gives root /bin/sh, so sudo -i wouldn't load any of the setup below
+  - name: Set zsh as root's shell
+    become: yes
+    user:
+      name: root
+      shell: /bin/zsh
+  # The tasks below run once per account in dotfile_users (the login user and root)
   - name: Configure .zprofile
     copy:
       src: files/zprofile
-      dest: "{{ home_dir }}/.zprofile"
+      dest: ~/.zprofile
       mode: 0640
+    become: yes
+    become_user: "{{ dotfile_user }}"
+    loop: "{{ dotfile_users }}"
+    loop_control:
+      loop_var: dotfile_user
   - name: Configure .zshrc
     template:
       src: files/zshrc.j2
-      dest: "{{ home_dir }}/.zshrc"
+      dest: ~/.zshrc
       mode: 0640
+    become: yes
+    become_user: "{{ dotfile_user }}"
+    loop: "{{ dotfile_users }}"
+    loop_control:
+      loop_var: dotfile_user
   - name: Ensure ~/.config exists
     file:
-      path: "{{ home_dir }}/.config"
+      path: ~/.config
       state: directory
+    become: yes
+    become_user: "{{ dotfile_user }}"
+    loop: "{{ dotfile_users }}"
+    loop_control:
+      loop_var: dotfile_user
   - name: Configure starship prompt
     copy:
       src: files/starship.toml
-      dest: "{{ home_dir }}/.config/starship.toml"
+      dest: ~/.config/starship.toml
       mode: 0640
+    become: yes
+    become_user: "{{ dotfile_user }}"
+    loop: "{{ dotfile_users }}"
+    loop_control:
+      loop_var: dotfile_user
   - name: Clone oh-my-zsh git repository
     git:
       repo: 'https://github.com/robbyrussell/oh-my-zsh.git'
-      dest: "{{ home_dir }}/.oh-my-zsh"
+      dest: ~/.oh-my-zsh
+    become: yes
+    become_user: "{{ dotfile_user }}"
+    loop: "{{ dotfile_users }}"
+    loop_control:
+      loop_var: dotfile_user
   - name: Remove powerlevel10k theme, replaced by starship
     file:
-      path: "{{ home_dir }}/.oh-my-zsh/custom/themes/powerlevel10k"
+      path: ~/.oh-my-zsh/custom/themes/powerlevel10k
       state: absent
+    become: yes
+    become_user: "{{ dotfile_user }}"
+    loop: "{{ dotfile_users }}"
+    loop_control:
+      loop_var: dotfile_user
   - name: Clone fzf git repository
     git:
       repo: 'https://github.com/junegunn/fzf.git'
-      dest: "{{ home_dir }}/.fzf"
+      dest: ~/.fzf
+    become: yes
+    become_user: "{{ dotfile_user }}"
+    loop: "{{ dotfile_users }}"
+    loop_control:
+      loop_var: dotfile_user
+    register: fzf
+  # Generates ~/.fzf.zsh, which .zshrc sources
+  - name: Install fzf
+    command:
+      cmd: ./install --key-bindings --completion --no-update-rc
+      chdir: ~/.fzf
+    become: yes
+    become_user: "{{ item.dotfile_user }}"
+    loop: "{{ fzf.results }}"
+    loop_control:
+      label: "{{ item.dotfile_user }}"
+    when: item.changed

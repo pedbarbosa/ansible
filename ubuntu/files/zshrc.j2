@@ -36,6 +36,11 @@ if [[ -d "$HOME/.oh-my-zsh" ]]; then
     {{ plugin }}
 {% endfor %}
   )
+{% if zsh_is_mac and dotfile_user == 'root' %}
+  # Homebrew's completion folders belong to the admin user, which oh-my-zsh
+  # flags as insecure for root. That user already has sudo, so skip the check.
+  ZSH_DISABLE_COMPFIX="true"
+{% endif %}
   source ${ZSH}/oh-my-zsh.sh
 {% if zsh_is_mac %}
   export HISTSIZE=50000
@@ -101,7 +106,7 @@ complete -o nospace -C /opt/homebrew/bin/terragrunt terragrunt
 {% endif %}
 zsh_timer autocomplete
 
-{% if zsh_is_mac and is_corporate %}
+{% if zsh_is_mac and is_corporate and dotfile_user != 'root' %}
 # Starting caffeinate
 if ! screen -list | grep -q "caffeinate"; then
   echo "$(date "+[%F %H-%M-%S]") Started caffeinate ..." >> ~/.caffeinate
