@@ -1,46 +1,58 @@
 ---
 - hosts: localhost
   connection: local
-  vars:
-    vim_dir: "{{ home_dir }}/.vim"
-    vimrc: "{{ home_dir }}/.vimrc"
   tasks:
     - name: Check if vim is installed
       package:
         name: vim
         state: present
 
+    # The tasks below run once per account in dotfile_users (the login user and root)
+    # Created even in check mode: get_url fails if its destination folder is
+    # missing, so root's first dry run would otherwise always fail
     - name: Ensure .vim/autoload directory exists
       file:
-        path: "{{ item }}"
+        path: ~/.vim/autoload
         state: directory
-        recurse: no
         mode: 0750
-      loop:
-        - "{{ vim_dir }}"
-        - "{{ vim_dir }}/autoload"
+      check_mode: false
+      become: yes
+      become_user: "{{ dotfile_user }}"
+      loop: "{{ dotfile_users }}"
+      loop_control:
+        loop_var: dotfile_user
 
     - name: Configure vimrc
       copy:
         src: files/vimrc
-        dest: "{{ vimrc }}"
+        dest: ~/.vimrc
         mode: 0640
+      become: yes
+      become_user: "{{ dotfile_user }}"
+      loop: "{{ dotfile_users }}"
+      loop_control:
+        loop_var: dotfile_user
 
-    - name: Check if vim-plug is installed
-      stat:
-        path: "{{ vim_dir }}/autoload/plug.vim"
-      register: vimplug_exists
-      changed_when: not vimplug_exists.stat.exists
-      notify: get_vimplug
-
-    - name: Install vim plugins
-      command: "vim -esu {{ vimrc }} +PlugUpgrade +qa || true && vim -esu {{ vimrc }} +PlugClean! +qa || true && vim -esu {{ vimrc }} +PlugUpdate +qa || true"
-      args:
-        creates: "{{ vim_dir }}/plugged"
-
-  handlers:
-    - name: get_vimplug
+    # Fetches the latest plug.vim each run; only reports changed when it differs
+    - name: Install vim-plug
       ansible.builtin.get_url:
         url: https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-        dest: "{{ vim_dir }}/autoload/plug.vim"
+        dest: ~/.vim/autoload/plug.vim
         mode: 0640
+      environment: "{{ dotfile_env }}"
+      become: yes
+      become_user: "{{ dotfile_user }}"
+      loop: "{{ dotfile_users }}"
+      loop_control:
+        loop_var: dotfile_user
+
+    - name: Install vim plugins
+      command: "vim -es -u ~/.vimrc -i NONE +'PlugInstall --sync' +qa"
+      args:
+        creates: ~/.vim/plugged
+      environment: "{{ dotfile_env }}"
+      become: yes
+      become_user: "{{ dotfile_user }}"
+      loop: "{{ dotfile_users }}"
+      loop_control:
+        loop_var: dotfile_user

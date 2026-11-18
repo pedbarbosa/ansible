@@ -8,27 +8,53 @@
         name: vim
         state: present
 
+# Runs once per account in dotfile_users (the login user and root)
 - hosts: all
   tasks:
+    # Created even in check mode: get_url fails if its destination folder is
+    # missing, so root's first dry run would otherwise always fail
     - name: vim - create autoload directory
       file:
         path: ~/.vim/autoload
         state: directory
         mode: 0775
+      check_mode: false
+      become: yes
+      become_user: "{{ dotfile_user }}"
+      loop: "{{ dotfile_users }}"
+      loop_control:
+        loop_var: dotfile_user
 
     - name: vim - install vim-plug
       ansible.builtin.get_url:
         url: https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
         dest: ~/.vim/autoload/plug.vim
         mode: 0664
+      become: yes
+      become_user: "{{ dotfile_user }}"
+      loop: "{{ dotfile_users }}"
+      loop_control:
+        loop_var: dotfile_user
 
     - name: vim - configure vimrc
       copy:
         src: files/vimrc
         dest: ~/.vimrc
         mode: 0664
-      notify: Run PlugInstall
+      become: yes
+      become_user: "{{ dotfile_user }}"
+      loop: "{{ dotfile_users }}"
+      loop_control:
+        loop_var: dotfile_user
+      register: vimrc
 
-  handlers:
-    - name: Run PlugInstall
-      command: vim +'PlugInstall --sync' +qa
+    # Batch mode (-es): without a terminal, a normal vim stops on any vimrc
+    # error at "Press ENTER" and the task hangs forever
+    - name: vim - install plugins when vimrc changed
+      command: vim -es -u ~/.vimrc -i NONE +'PlugInstall --sync' +qa
+      become: yes
+      become_user: "{{ item.dotfile_user }}"
+      loop: "{{ vimrc.results }}"
+      loop_control:
+        label: "{{ item.dotfile_user }}"
+      when: item.changed

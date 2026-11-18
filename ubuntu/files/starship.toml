@@ -1,0 +1,295 @@
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+
+"$schema" = 'https://starship.rs/config-schema.json'
+
+format = """
+[](color_orange)\
+$os\
+$username\
+[](bg:color_yellow fg:color_orange)\
+$directory\
+[](fg:color_yellow bg:color_aqua)\
+$git_branch\
+$git_commit\
+$git_state\
+$git_status\
+[](fg:color_aqua bg:color_blue)\
+$c\
+$rust\
+$golang\
+$nodejs\
+$bun\
+$php\
+$java\
+$kotlin\
+$haskell\
+${custom.python}\
+${custom.ruby}\
+[](fg:color_blue bg:color_bg3)\
+$docker_context\
+$conda\
+$aws\
+${custom.terraform}\
+[](fg:color_bg3 bg:color_bg1)\
+$cmd_duration\
+$jobs\
+$time\
+[ ](fg:color_bg1)\
+$line_break$character"""
+
+palette = 'gruvbox_dark'
+
+[palettes.gruvbox_dark]
+color_fg0 = '#fbf1c7'
+color_bg1 = '#3c3836'
+color_bg3 = '#665c54'
+color_blue = '#458588'
+color_aqua = '#689d6a'
+color_green = '#98971a'
+color_orange = '#d65d0e'
+color_purple = '#b16286'
+color_red = '#cc241d'
+color_yellow = '#d79921'
+
+[os]
+disabled = false
+style = "bg:color_orange fg:color_fg0"
+
+[os.symbols]
+Windows = "󰍲 "
+Ubuntu = "󰕈 "
+SUSE = " "
+Raspbian = "󰐿 "
+Mint = "󰣭 "
+Macos = "󰀵 "
+Manjaro = " "
+Linux = "󰌽 "
+Gentoo = "󰣨 "
+Fedora = "󰣛 "
+Alpine = " "
+Amazon = " "
+Android = " "
+Arch = "󰣇 "
+Artix = "󰣇 "
+EndeavourOS = " "
+CentOS = " "
+Debian = "󰣚 "
+Redhat = "󱄛 "
+RedHatEnterprise = "󱄛 "
+Pop = " "
+
+[username]
+show_always = true
+style_user = "bg:color_orange fg:color_fg0"
+style_root = "bg:color_orange fg:color_fg0"
+format = '[$user ]($style)'
+
+[directory]
+style = "fg:color_fg0 bg:color_yellow"
+format = "[ $path ]($style)"
+truncation_length = 3
+truncation_symbol = "…/"
+
+[directory.substitutions]
+"Documents" = "󰈙 "
+"Downloads" = " "
+"Music" = "󰝚 "
+"Pictures" = " "
+"Developer" = "󰲋 "
+
+[git_branch]
+symbol = ""
+style = "bg:color_aqua"
+only_attached = true  # on a detached HEAD, git_commit shows the hash instead
+format = '[[ $symbol $branch ](fg:color_fg0 bg:color_aqua)]($style)'
+
+# Detached HEAD: "@1a2b3c4d", plus " #v1.2.3" when HEAD is tagged (p10k style).
+[git_commit]
+style = "bg:color_aqua"
+commit_hash_length = 8
+tag_disabled = false
+tag_symbol = " #"
+format = '[[ @$hash$tag ](fg:color_fg0 bg:color_aqua)]($style)'
+
+# Operation in progress: REBASING 2/5, MERGING, CHERRY-PICKING, BISECTING...
+[git_state]
+style = "bg:color_aqua"
+format = '[[$state( $progress_current/$progress_total) ](bold fg:color_fg0 bg:color_aqua)]($style)'
+
+# Counts with p10k's symbols: ⇣behind ⇡ahead *stashes ~conflicts +staged !modified ?untracked
+[git_status]
+style = "bg:color_aqua"
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇣${behind_count}⇡${ahead_count}"
+stashed = "*${count}"
+conflicted = "~${count}"
+staged = "+${count}"
+modified = "!${count}"
+renamed = "»${count}"
+deleted = "✘${count}"
+untracked = "?${count}"
+format = '[[($ahead_behind )($stashed )($conflicted )($staged )($modified )($renamed )($deleted )($untracked )](fg:color_fg0 bg:color_aqua)]($style)'
+
+[nodejs]
+symbol = ""
+style = "bg:color_blue"
+format = '[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)'
+
+[bun]
+symbol = ""
+style = "bg:color_blue"
+format = '[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)'
+
+[c]
+symbol = " "
+style = "bg:color_blue"
+format = '[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)'
+
+[rust]
+symbol = ""
+style = "bg:color_blue"
+format = '[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)'
+
+[golang]
+symbol = ""
+style = "bg:color_blue"
+format = '[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)'
+
+[php]
+symbol = ""
+style = "bg:color_blue"
+format = '[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)'
+
+[java]
+symbol = ""
+style = "bg:color_blue"
+format = '[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)'
+
+[kotlin]
+symbol = ""
+style = "bg:color_blue"
+format = '[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)'
+
+[haskell]
+symbol = ""
+style = "bg:color_blue"
+format = '[[ $symbol( $version) ](fg:color_fg0 bg:color_blue)]($style)'
+
+# Python and Ruby work like p10k's pyenv/rbenv segments: show the pinned version
+# when $PYENV_VERSION / $RBENV_VERSION is set, or when a .python-version /
+# .ruby-version exists in the current folder or any parent. The built-in python
+# and ruby modules only look in the current folder, hence the custom modules.
+[custom.python]
+symbol = ""  # nf-seti-python
+style = "bg:color_blue"
+shell = ["sh"]
+when = '''
+[ -n "$PYENV_VERSION" ] && exit 0
+d=$PWD
+while :; do
+  [ -f "$d/.python-version" ] && exit 0
+  [ "$d" = / ] && exit 1
+  d=${d%/*}; d=${d:-/}
+done
+'''
+command = '''
+[ -n "$PYENV_VERSION" ] && { echo "$PYENV_VERSION"; exit; }
+d=$PWD
+while :; do
+  [ -f "$d/.python-version" ] && { awk 'NF && $1 !~ /^#/ { print $1; exit }' "$d/.python-version"; exit; }
+  [ "$d" = / ] && exit
+  d=${d%/*}; d=${d:-/}
+done
+'''
+format = '[[ $symbol( $output) ](fg:color_fg0 bg:color_blue)]($style)'
+
+[custom.ruby]
+symbol = ""  # nf-seti-ruby
+style = "bg:color_blue"
+shell = ["sh"]
+when = '''
+[ -n "$RBENV_VERSION" ] && exit 0
+d=$PWD
+while :; do
+  [ -f "$d/.ruby-version" ] && exit 0
+  [ "$d" = / ] && exit 1
+  d=${d%/*}; d=${d:-/}
+done
+'''
+command = '''
+[ -n "$RBENV_VERSION" ] && { echo "$RBENV_VERSION"; exit; }
+d=$PWD
+while :; do
+  [ -f "$d/.ruby-version" ] && { awk 'NF && $1 !~ /^#/ { print $1; exit }' "$d/.ruby-version"; exit; }
+  [ "$d" = / ] && exit
+  d=${d%/*}; d=${d:-/}
+done
+'''
+format = '[[ $symbol( $output) ](fg:color_fg0 bg:color_blue)]($style)'
+
+[docker_context]
+symbol = ""
+style = "bg:color_bg3"
+format = '[[ $symbol( $context) ](fg:#83a598 bg:color_bg3)]($style)'
+
+[conda]
+style = "bg:color_bg3"
+format = '[[ $symbol( $environment) ](fg:#83a598 bg:color_bg3)]($style)'
+
+# Profile and region. Unlike p10k, Starship can't show this only while you type
+# aws/terraform/terragrunt: it shows whenever a profile or region is set.
+[aws]
+symbol = ""  # nf-dev-aws
+style = "bg:color_bg3"
+format = '[[ $symbol( $profile)( $region)( \[$duration\]) ](fg:#fe8019 bg:color_bg3)]($style)'
+
+# Terraform workspace, hidden when it's "default" (like p10k). The built-in
+# terraform module always shows the workspace, so this is a custom module.
+[custom.terraform]
+symbol = ""  # nf-seti-terraform
+style = "bg:color_bg3"
+shell = ["sh"]
+when = '''
+ws=$TF_WORKSPACE
+f="${TF_DATA_DIR:-.terraform}/environment"
+[ -z "$ws" ] && [ -f "$f" ] && read -r ws < "$f"
+[ -n "$ws" ] && [ "$ws" != default ]
+'''
+command = '''
+ws=$TF_WORKSPACE
+f="${TF_DATA_DIR:-.terraform}/environment"
+[ -z "$ws" ] && [ -f "$f" ] && read -r ws < "$f"
+echo "$ws"
+'''
+format = '[[ $symbol $output ](fg:#83a598 bg:color_bg3)]($style)'
+
+# Duration of the last command, when it took 3s or more (p10k's threshold).
+[cmd_duration]
+min_time = 3000
+style = "bg:color_bg1"
+format = '[[  $duration ](fg:color_fg0 bg:color_bg1)]($style)'
+
+# Background jobs: gear icon, plus the count when there's more than one.
+[jobs]
+symbol = ""  # nf-fa-gear
+style = "bg:color_bg1"
+format = '[[ $symbol( $number) ](fg:color_fg0 bg:color_bg1)]($style)'
+
+[time]
+disabled = false
+time_format = "%R"
+style = "bg:color_bg1"
+format = '[[  $time ](fg:color_fg0 bg:color_bg1)]($style)'
+
+[line_break]
+disabled = false
+
+[character]
+disabled = false
+success_symbol = '[](bold fg:color_green)'
+error_symbol = '[](bold fg:color_red)'
+vimcmd_symbol = '[](bold fg:color_green)'
+vimcmd_replace_one_symbol = '[](bold fg:color_purple)'
+vimcmd_replace_symbol = '[](bold fg:color_purple)'
+vimcmd_visual_symbol = '[](bold fg:color_yellow)'

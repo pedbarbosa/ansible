@@ -1,10 +1,4 @@
 ---
-- name: Configure local Mac
-  hosts: localhost
-  connection: local
-  gather_facts: true
-  tasks: []
-
 # Core mac packages and configuration
 - import_playbook: mac/default.yml
 

@@ -1,8 +1,32 @@
+# Pin Homebrew's Python instead of letting discovery pick whatever comes first
+# on PATH (a pyenv shim, which changes with `pyenv global`) and warn that it
+# may change. /usr/bin/python3 is Apple's Command Line Tools stub, so it isn't
+# an option. Homebrew's python3 is always present: the ansible and ipython
+# formulae depend on it. mac/default.yml bootstraps `packaging` into it.
+ansible_python_interpreter: "{{ homebrew_prefix }}/bin/python3"
+
 home_dir: "{{ ansible_facts['env']['HOME'] }}"
 
 zsh_is_mac: true
 
-homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['architecture'] == 'arm64' else '/usr/local' }}"
+# Accounts that get the zsh, Starship and vim setup, so a root shell (sudo -i)
+# or sudo vim feels the same as the login user's. user_id is the account
+# Ansible connects as, so only use this in plays without play-level become
+# (facts gathered under become report root).
+dotfile_users:
+  - "{{ ansible_facts['user_id'] }}"
+  - root
+
+# CA bundle and proxy variables from the shell Ansible runs in (e.g. set up by
+# MDM on corporate Macs). sudo drops them, so downloads done as root would fail
+# TLS verification. Tasks that fetch things for each dotfile user pass these
+# back with `environment:`. Ansible skips sudo for the login user, so it's a
+# no-op there.
+dotfile_env: "{{ ansible_facts['env'] | dict2items | selectattr('key', 'match', '(?i).*(SSL_CERT|CA_BUNDLE|CAINFO|CA_CERTS|PROXY)') | items2dict }}"
+
+# Read from the machine running Ansible, not from facts: the interpreter above
+# needs it before facts are gathered. Fine because Mac plays only target localhost.
+homebrew_prefix: "{{ '/opt/homebrew' if lookup('pipe', 'uname -m') == 'arm64' else '/usr/local' }}"
 
 is_corporate: "{{ ansible_facts['hostname'].split('.')[0] not in personal_hostnames }}"
 

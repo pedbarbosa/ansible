@@ -8,42 +8,124 @@
         name: zsh
         state: present
 
+    # Starship comes from its GitHub releases, not apt: Ubuntu's package lags
+    # well behind (1.22 vs 1.27 at the time of writing)
+    - name: zsh - get the latest starship release
+      uri:
+        url: https://api.github.com/repos/starship/starship/releases/latest
+        method: GET
+        return_content: yes
+      register: starship_latest
+      check_mode: false
+
+    # Forced in check mode too: it's read-only, and its output is parsed below
+    - name: zsh - get the installed version of starship
+      command: /usr/local/bin/starship --version
+      register: starship_installed
+      failed_when: false
+      changed_when: false
+      check_mode: false
+
+    - name: zsh - extract the starship versions and tarball name
+      set_fact:
+        starship_version: "{{ starship_latest.json.tag_name | regex_replace('^v', '') }}"
+        starship_installed_version: "{{ starship_installed.stdout_lines[0] | default('') | regex_replace('^starship ', '') }}"
+        starship_tarball: "starship-{{ ansible_facts['architecture'] }}-unknown-linux-musl.tar.gz"
+
+    - name: zsh - download the latest starship release if needed
+      get_url:
+        url: "https://github.com/starship/starship/releases/download/v{{ starship_version }}/{{ starship_tarball }}"
+        dest: "/tmp/{{ starship_tarball }}"
+        checksum: "sha256:https://github.com/starship/starship/releases/download/v{{ starship_version }}/{{ starship_tarball }}.sha256"
+      when: starship_installed_version != starship_version
+      check_mode: false
+
+    - name: zsh - install starship if needed
+      unarchive:
+        src: "/tmp/{{ starship_tarball }}"
+        dest: /usr/local/bin
+        remote_src: yes
+        owner: root
+        group: root
+        mode: 0755
+      when: starship_installed_version != starship_version
+
     - name: zsh - read secrets from file
       include_vars:
         file: ../local/secrets.yml
 
     - name: zsh - set default shell
       user:
-        name: "{{ main_user_account }}"
+        name: "{{ item }}"
         shell: /bin/zsh
+      loop:
+        - "{{ main_user_account }}"
+        - root
 
+# Runs once per account in dotfile_users (the login user and root)
 - hosts: all
   tasks:
-    - name: zsh - configure zshrc for user
+    - name: zsh - configure zshrc
       template:
         src: files/zshrc.j2
         dest: ~/.zshrc
+      become: yes
+      become_user: "{{ dotfile_user }}"
+      loop: "{{ dotfile_users }}"
+      loop_control:
+        loop_var: dotfile_user
 
-    - name: zsh - configure oh-my-zsh for user
+    - name: zsh - ensure config directory exists
+      file:
+        path: ~/.config
+        state: directory
+      become: yes
+      become_user: "{{ dotfile_user }}"
+      loop: "{{ dotfile_users }}"
+      loop_control:
+        loop_var: dotfile_user
+
+    - name: zsh - configure starship prompt
+      copy:
+        src: files/starship.toml
+        dest: ~/.config/starship.toml
+      become: yes
+      become_user: "{{ dotfile_user }}"
+      loop: "{{ dotfile_users }}"
+      loop_control:
+        loop_var: dotfile_user
+
+    - name: zsh - configure oh-my-zsh
       git:
         repo: 'https://github.com/robbyrussell/oh-my-zsh.git'
         dest: ~/.oh-my-zsh
         update: yes
+      become: yes
+      become_user: "{{ dotfile_user }}"
+      loop: "{{ dotfile_users }}"
+      loop_control:
+        loop_var: dotfile_user
 
-    - name: zsh - install Powerlevel10k for OMZ
-      ansible.builtin.git:
-        repo: 'https://github.com/romkatv/powerlevel10k.git'
-        dest: ~/.oh-my-zsh/custom/themes/powerlevel10k
-        depth: 1
-        update: yes
-
-    - name: zsh - configure fzf for user
+    - name: zsh - configure fzf
       git:
         repo: 'https://github.com/junegunn/fzf.git'
         dest: ~/.fzf
         update: yes
+      become: yes
+      become_user: "{{ dotfile_user }}"
+      loop: "{{ dotfile_users }}"
+      loop_control:
+        loop_var: dotfile_user
       register: fzf
 
-    - name: zsh - install fzf on user
-      command: chdir=~/.fzf ./install --key-bindings --completion --update-rc
-      when: fzf.changed
+    # Called by path, not chdir: command changes directory before honouring
+    # check mode, so a dry run fails while the clone above is only simulated
+    - name: zsh - install fzf
+      command:
+        cmd: ~/.fzf/install --key-bindings --completion --no-update-rc
+      become: yes
+      become_user: "{{ item.dotfile_user }}"
+      loop: "{{ fzf.results }}"
+      loop_control:
+        label: "{{ item.dotfile_user }}"
+      when: item.changed

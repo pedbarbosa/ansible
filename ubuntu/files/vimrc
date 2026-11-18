@@ -15,7 +15,7 @@ Plug 'tpope/vim-unimpaired'
 Plug 'ekalinin/Dockerfile.vim'
 Plug 'airblade/vim-rooter'
 Plug 'kien/ctrlp.vim'
-Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
+Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --bin' }
 Plug 'nanotech/jellybeans.vim'
 call plug#end()
 
@@ -29,7 +29,7 @@ set list lcs=tab:\|\
 
 " Colours
 set background=dark
-colorscheme jellybeans
+silent! colorscheme jellybeans " silent!: not installed yet on a first PlugInstall
 
 " UI
 set nocompatible   " Use Vim defaults instead of 100% vi compatibility
