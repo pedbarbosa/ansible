@@ -15,13 +15,15 @@ openwrt_collectd_plugins_router:
   - ping
   - thermal
 
-# WAN latency/jitter/loss targets, reusing the server's collectd ping hosts
+# WAN latency/jitter/loss targets: the server's collectd ping hosts (1-5)
+# plus a router-only near-home baseline (6)
 openwrt_collectd_ping_hosts:
   - "{{ collectd_ping_host1 }}"
   - "{{ collectd_ping_host2 }}"
   - "{{ collectd_ping_host3 }}"
   - "{{ collectd_ping_host4 }}"
   - "{{ collectd_ping_host5 }}"
+  - "{{ collectd_ping_host6 }}"
 
 openwrt_collectd_dns_interfaces:
   - br-lan
