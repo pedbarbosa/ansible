@@ -15,8 +15,7 @@ openwrt_collectd_plugins_router:
   - ping
   - thermal
 
-# WAN latency/jitter/loss targets: the server's collectd ping hosts (1-5)
-# plus a router-only near-home baseline (6)
+# WAN latency/jitter/loss targets (router only; Ubuntu doesn't run the ping plugin)
 openwrt_collectd_ping_hosts:
   - "{{ collectd_ping_host1 }}"
   - "{{ collectd_ping_host2 }}"
