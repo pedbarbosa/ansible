@@ -48,12 +48,6 @@
         dest: /etc/collectd/collectd.conf.d
       notify: Restart collectd
 
-    - name: collectd - ping module configuration
-      template:
-        src: files/collectd.conf.d/ping.conf
-        dest: /etc/collectd/collectd.conf.d
-      notify: Restart collectd
-
     - name: collectd - processes module configuration
       template:
         src: files/collectd.conf.d/processes.conf

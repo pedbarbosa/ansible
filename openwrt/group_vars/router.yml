@@ -3,13 +3,20 @@ openwrt_packages_router:
   - luci-app-banip
   - collectd-mod-conntrack
   - collectd-mod-dns
+  - collectd-mod-mqtt
+  - collectd-mod-ping
   - collectd-mod-thermal
 
 # openwrt/collectd.yml
 openwrt_collectd_plugins_router:
   - conntrack
   - dns
+  - mqtt
+  - ping
   - thermal
+
+# openwrt_collectd_ping_hosts (the ping plugin's targets) is in local/secrets.yml.
+# Don't define it here too: group_vars/router.yml overrides group_vars/all/secrets.yml.
 
 openwrt_collectd_dns_interfaces:
   - br-lan
