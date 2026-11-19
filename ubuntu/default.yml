@@ -48,6 +48,7 @@
         group: root
         mode: 0755
       with_fileglob:
+        - "files/00-header"
         - "files/10-help-text"
         - "files/89-docker-info"
       notify: Update MOTD

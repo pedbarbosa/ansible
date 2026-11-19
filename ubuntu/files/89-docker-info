@@ -1,15 +1,33 @@
 #!/bin/sh
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+
+# 24-bit colours from the gruvbox_dark palette in starship.toml
+blue='131;165;152'
+green='152;151;26'
+red='204;36;29'
+yellow='215;153;33'
+
+e=$(printf '\033')
+fg() { printf '%s[38;2;%sm' "$e" "$1"; }
+bold="${e}[1m"
+rs="${e}[0m"
+docker=$(printf '\357\214\210')  # U+F308 Nerd Font Docker logo, as in [docker_context]
+
 dRunning=$(docker ps -q | wc -l)
 dExited=$(docker ps -aq --filter status=exited | wc -l)
 
-if [ "$dExited" -eq 0 ]; then
-    dMessage="$dRunning running"
-else
-    dMessage="$dRunning running and $dExited exited"
+dMessage="${bold}$(fg $green)$dRunning running${rs}"
+if [ "$dExited" -ne 0 ]; then
+    dMessage="$dMessage and ${bold}$(fg $red)$dExited exited${rs}"
 fi
 
 dDangling=$(docker images -q -f dangling=true | wc -l)
 if [ "$dDangling" -eq 1 ]; then dImages="image"; else dImages="images"; fi
+if [ "$dDangling" -ne 0 ]; then
+    dImageMessage="${bold}$(fg $yellow)$dDangling dangling $dImages${rs}"
+else
+    dImageMessage="$dDangling dangling $dImages"
+fi
 
 echo
-echo "Docker: $dMessage containers. $dDangling dangling $dImages."
+printf '%s\n' "${bold}$(fg $blue)${docker} Docker:${rs} $dMessage containers. $dImageMessage."

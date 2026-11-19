@@ -1,0 +1,38 @@
+#!/bin/sh
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+#
+# Replaces Ubuntu's stock 00-header ("Welcome to Ubuntu ...") with a banner in
+# the same powerline style and gruvbox_dark palette as starship.toml.
+
+[ -r /etc/lsb-release ] && . /etc/lsb-release
+
+if [ -z "$DISTRIB_DESCRIPTION" ] && [ -x /usr/bin/lsb_release ]; then
+    # Fall back to using the very slow lsb_release utility
+    DISTRIB_DESCRIPTION=$(lsb_release -s -d)
+fi
+
+# 24-bit colours from the gruvbox_dark palette in starship.toml
+fg0='251;241;199'
+orange='214;93;14'
+yellow='215;153;33'
+aqua='104;157;106'
+
+# Nerd Font glyphs, as UTF-8 octal escapes so editors can't strip them
+left=$(printf '\356\202\266')   # U+E0B6 rounded left cap
+arrow=$(printf '\356\202\260')  # U+E0B0 powerline arrow
+right=$(printf '\356\202\264')  # U+E0B4 rounded right cap
+ubuntu=$(printf '\363\260\225\210')  # U+F0548 Ubuntu logo, as in [os.symbols]
+
+e=$(printf '\033')
+fg() { printf '%s[38;2;%sm' "$e" "$1"; }
+bg() { printf '%s[48;2;%sm' "$e" "$1"; }
+rs="${e}[0m"
+
+printf '%s\n' "\
+$(fg $orange)${left}\
+$(bg $orange)$(fg $fg0) ${ubuntu} ${DISTRIB_DESCRIPTION} \
+$(bg $yellow)$(fg $orange)${arrow}\
+$(fg $fg0) $(uname -o) $(uname -r) \
+$(bg $aqua)$(fg $yellow)${arrow}\
+$(fg $fg0) $(uname -m) \
+${rs}$(fg $aqua)${right}${rs}"
