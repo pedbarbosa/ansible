@@ -15,14 +15,8 @@ openwrt_collectd_plugins_router:
   - ping
   - thermal
 
-# WAN latency/jitter/loss targets (router only; Ubuntu doesn't run the ping plugin)
-openwrt_collectd_ping_hosts:
-  - "{{ collectd_ping_host1 }}"
-  - "{{ collectd_ping_host2 }}"
-  - "{{ collectd_ping_host3 }}"
-  - "{{ collectd_ping_host4 }}"
-  - "{{ collectd_ping_host5 }}"
-  - "{{ collectd_ping_host6 }}"
+# openwrt_collectd_ping_hosts (the ping plugin's targets) is in local/secrets.yml.
+# Don't define it here too: group_vars/router.yml overrides group_vars/all/secrets.yml.
 
 openwrt_collectd_dns_interfaces:
   - br-lan
