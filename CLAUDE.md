@@ -261,6 +261,23 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   new one, per explicit request.
 - `openwrt/banip.yml` (`/etc/config/banip`) is router-only (same `hosts:
   router` / `domain`-secret reasoning as `openwrt/adblock.yml` above).
+- `openwrt/blocklists_mqtt.yml` (router only) installs `blocklists-mqtt`, a
+  procd service with two instances: `loop` publishes adblock/banIP state and
+  counts (read from their `/var/run/*/*.runtime.json`) to `router/<svc>/state`
+  every 60s, plus Home Assistant MQTT discovery for `switch.router_adblock`,
+  `switch.router_banip` and their `sensor.router_*_blocked` counts; `listen`
+  subscribes to `router/<svc>/set` and runs `adblock suspend`/`resume` and
+  `banip stop`/`start`. "Off" is deliberately temporary (a reboot or the daily
+  cron reload can turn them back on). The script and init file are deployed
+  with `community.openwrt.copy`, not `template`, because the script holds Home
+  Assistant's own `{{ value_json... }}` templates; only
+  `/etc/blocklists-mqtt.conf` (broker and credentials, mode 0600) is a
+  template. It reuses `openwrt_collectd_mqtt_host` but has its own MQTT user
+  (`openwrt_blocklists_mqtt_user`/`_password`), since this user can switch the
+  router's blocking off and should get a narrower broker ACL than collectd's.
+  The service tasks carry `ignore_errors: "{{ ansible_check_mode }}"`: on a
+  first check-mode run the init script isn't really copied, so there's no
+  service yet to inspect.
 - `openwrt/firewall.yml` (`/etc/config/firewall`) is the one file so far
   split by content sensitivity rather than by host group: the AP zones are
   identical/simple enough to commit directly in
