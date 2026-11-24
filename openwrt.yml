@@ -44,6 +44,10 @@
 # adblock/banip
 - import_playbook: openwrt/cron.yml
 
+# blocklists-mqtt - adblock/banIP status, counts and on/off switches for Home
+# Assistant over MQTT - router only, same reasoning as adblock/banip
+- import_playbook: openwrt/blocklists_mqtt.yml
+
 # firewall - AP config is committed directly (identical, non-sensitive);
 # the router's zones/rules/port forwards are too revealing of the internal
 # network to commit even sanitised, so that content lives in
