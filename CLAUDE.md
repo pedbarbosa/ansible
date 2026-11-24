@@ -280,9 +280,11 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   template. It reuses collectd's broker and MQTT user
   (`openwrt_collectd_mqtt_host`/`_user`/`_password`): a separate user would
   isolate nothing, since both credentials live in plaintext on the same router.
-  The service tasks carry `ignore_errors: "{{ ansible_check_mode }}"`: on a
-  first check-mode run the init script isn't really copied, so there's no
-  service yet to inspect.
+  On a first check-mode run the init script's `copy` only simulates, so the
+  `service` module would fail with "does not exist". A `stat` of
+  `/etc/init.d/blocklists-mqtt` gates the service task and the restart handler
+  (`when: not ansible_check_mode or blocklists_mqtt_init.stat.exists`), so the
+  preview skips them cleanly instead of failing.
 - `openwrt/firewall.yml` (`/etc/config/firewall`) is the one file so far
   split by content sensitivity rather than by host group: the AP zones are
   identical/simple enough to commit directly in

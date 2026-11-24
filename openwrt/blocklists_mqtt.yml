@@ -29,18 +29,25 @@
         mode: "0755"
       notify: openwrt - Restart blocklists-mqtt
 
-    # In check mode the init script above isn't really copied yet, so on a
-    # first run there's no service to check: don't fail the preview for that.
+    # In check mode the copy above only simulates, so on a first run there's no
+    # init script yet and the service module fails with "does not exist".
+    # Skip the service steps in that case; a real run always does them.
+    - name: openwrt - Check for the blocklists-mqtt init script
+      community.openwrt.stat:
+        path: /etc/init.d/blocklists-mqtt
+        get_checksum: false
+      register: blocklists_mqtt_init
+
     - name: openwrt - Enable and start blocklists-mqtt
       community.openwrt.service:
         name: blocklists-mqtt
         enabled: true
         state: started
-      ignore_errors: "{{ ansible_check_mode }}"
+      when: not ansible_check_mode or blocklists_mqtt_init.stat.exists
 
   handlers:
     - name: openwrt - Restart blocklists-mqtt
       community.openwrt.service:
         name: blocklists-mqtt
         state: restarted
-      ignore_errors: "{{ ansible_check_mode }}"
+      when: not ansible_check_mode or blocklists_mqtt_init.stat.exists
