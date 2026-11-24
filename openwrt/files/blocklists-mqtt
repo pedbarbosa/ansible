@@ -17,6 +17,11 @@
 # every start, stop, reload, suspend and resume, whoever triggers it (these
 # switches, LuCI, the daily cron reload, a reboot), and inotifywait reports it.
 #
+# A switch command is acknowledged straight away: the requested state is
+# reported (status "switching") until the service gets there, so Home
+# Assistant's toggle stays where it was put instead of bouncing back while the
+# service works. See publish().
+#
 # "Off" is temporary: adblock is suspended (its lists are kept, so resuming is
 # quick) and banIP is stopped. A restart, a reboot or the daily cron reload
 # can turn either back on.
@@ -30,6 +35,8 @@ ADB_DIR=/var/run/adblock
 BAN_DIR=/var/run/banIP
 ADB_RT="$ADB_DIR/adblock.runtime.json"
 BAN_RT="$BAN_DIR/banIP.runtime.json"
+PENDING_DIR=/var/run/blocklists-mqtt
+PENDING_TIMEOUT=90 # banIP takes ~35s to load its sets
 
 mqtt_pub() {
 	mosquitto_pub -h "$MQTT_HOST" -p "$MQTT_PORT" -u "$MQTT_USER" -P "$MQTT_PASS" "$@"
@@ -61,10 +68,36 @@ read_banip() {
 	esac
 }
 
+# A switch command is pending from when it arrives until the service reaches
+# the requested state, or PENDING_TIMEOUT runs out. Meanwhile this reports the
+# requested state, ignoring the in-between states the service writes on the
+# way (adblock passes through "running", banIP through "processing").
 publish() { # adblock|banip
 	"read_$1"
+	if [ -f "$PENDING_DIR/$1" ]; then
+		read -r want since <"$PENDING_DIR/$1"
+		if [ "$state" != "$want" ] && [ $(($(date +%s) - since)) -lt "$PENDING_TIMEOUT" ]; then
+			state=$want status=switching
+			[ "$want" = OFF ] && count=0
+		else
+			rm -f "$PENDING_DIR/$1"
+		fi
+	fi
 	mqtt_pub -r -t "$BASE/$1/state" \
 		-m "{\"state\":\"$state\",\"status\":\"${status:-unknown}\",\"count\":${count:-0}}"
+}
+
+# Record a switch command and acknowledge it at once. The watch instance
+# publishes the real state when the service gets there; if it never does, the
+# check after PENDING_TIMEOUT reports what the service actually is.
+request() { # adblock|banip ON|OFF
+	mkdir -p "$PENDING_DIR"
+	echo "$2 $(date +%s)" >"$PENDING_DIR/$1"
+	publish "$1"
+	(
+		sleep "$PENDING_TIMEOUT"
+		publish "$1"
+	) &
 }
 
 publish_all() {
@@ -114,10 +147,10 @@ listen() {
 		-v -t "$BASE/adblock/set" -t "$BASE/banip/set" -t "$DISCOVERY/status" |
 		while read -r topic payload; do
 			case "$topic $payload" in
-				"$BASE/adblock/set ON") /etc/init.d/adblock resume ;;
-				"$BASE/adblock/set OFF") /etc/init.d/adblock suspend ;;
-				"$BASE/banip/set ON") /etc/init.d/banip start ;;
-				"$BASE/banip/set OFF") /etc/init.d/banip stop ;;
+				"$BASE/adblock/set ON") request adblock ON && /etc/init.d/adblock resume ;;
+				"$BASE/adblock/set OFF") request adblock OFF && /etc/init.d/adblock suspend ;;
+				"$BASE/banip/set ON") request banip ON && /etc/init.d/banip start ;;
+				"$BASE/banip/set OFF") request banip OFF && /etc/init.d/banip stop ;;
 				"$DISCOVERY/status online")
 					# Home Assistant (re)started: in case the broker lost the
 					# retained messages, send everything again.
@@ -132,8 +165,8 @@ listen() {
 					continue
 					;;
 			esac
-			# The watch instance publishes the new state once the service
-			# has written it.
+			# request() has acknowledged it; the watch instance publishes the
+			# real state once the service has written it.
 			logger -t blocklists-mqtt "$topic $payload"
 		done
 }

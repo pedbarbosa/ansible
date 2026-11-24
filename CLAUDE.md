@@ -270,9 +270,15 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   no polling: both services rewrite that file on every start, stop, reload,
   suspend and resume, whoever triggers it. `listen` subscribes to
   `router/<svc>/set` and runs `adblock suspend`/`resume` and `banip
-  stop`/`start` (the watcher then publishes the result), and to
+  stop`/`start`, and to
   `homeassistant/status`, republishing everything when HA comes back online in
-  case the broker lost its retained messages. "Off" is deliberately temporary
+  case the broker lost its retained messages. A switch command is
+  acknowledged at once: `request()` records it in
+  `/var/run/blocklists-mqtt/<svc>` and publishes the requested state with
+  status `switching`, and `publish()` keeps reporting that, ignoring the
+  services' in-between states, until the service reaches it or 90s pass
+  (then it reports the real state). Without this, HA's toggle bounces back
+  after ~2s while adblock resumes or banIP loads. "Off" is deliberately temporary
   (a reboot or the daily cron reload can turn them back on). The script and init file are deployed
   with `community.openwrt.copy`, not `template`, because the script holds Home
   Assistant's own `{{ value_json... }}` templates; only
