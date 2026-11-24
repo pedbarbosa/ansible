@@ -1,0 +1,53 @@
+---
+# adblock/banIP status, counts and on/off switches for Home Assistant over MQTT
+# (blocklists-mqtt) - router only, same reasoning as openwrt/adblock.yml.
+# mosquitto_pub/sub and inotifywait come from openwrt_packages_router
+# (openwrt/default.yml).
+- hosts: router
+  gather_facts: false
+  tasks:
+    - name: openwrt - Configure blocklists-mqtt credentials
+      community.openwrt.template:
+        src: files/blocklists-mqtt.conf
+        dest: /etc/blocklists-mqtt.conf
+        mode: "0600"
+      notify: openwrt - Restart blocklists-mqtt
+
+    # copy, not template: the script holds Home Assistant's own {{ ... }}
+    # value templates, which Jinja would try to render.
+    - name: openwrt - Install blocklists-mqtt script
+      community.openwrt.copy:
+        src: files/blocklists-mqtt
+        dest: /usr/bin/blocklists-mqtt
+        mode: "0755"
+      notify: openwrt - Restart blocklists-mqtt
+
+    - name: openwrt - Install blocklists-mqtt service
+      community.openwrt.copy:
+        src: files/blocklists-mqtt.init
+        dest: /etc/init.d/blocklists-mqtt
+        mode: "0755"
+      notify: openwrt - Restart blocklists-mqtt
+
+    # In check mode the copy above only simulates, so on a first run there's no
+    # init script yet and the service module fails with "does not exist".
+    # Skip the service steps in that case; a real run always does them.
+    - name: openwrt - Check for the blocklists-mqtt init script
+      community.openwrt.stat:
+        path: /etc/init.d/blocklists-mqtt
+        get_checksum: false
+      register: blocklists_mqtt_init
+
+    - name: openwrt - Enable and start blocklists-mqtt
+      community.openwrt.service:
+        name: blocklists-mqtt
+        enabled: true
+        state: started
+      when: not ansible_check_mode or blocklists_mqtt_init.stat.exists
+
+  handlers:
+    - name: openwrt - Restart blocklists-mqtt
+      community.openwrt.service:
+        name: blocklists-mqtt
+        state: restarted
+      when: not ansible_check_mode or blocklists_mqtt_init.stat.exists

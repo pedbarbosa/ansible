@@ -1,0 +1,150 @@
+#!/bin/sh
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+#
+# blocklists-mqtt: report adblock and banIP to Home Assistant over MQTT (with
+# MQTT discovery, so HA creates the entities itself), and switch them on and
+# off from Home Assistant.
+#
+#   blocklists-mqtt watch    publish discovery and state, then publish a
+#                            service's state whenever its runtime file changes
+#   blocklists-mqtt listen   act on ON/OFF commands from Home Assistant, and
+#                            republish everything when Home Assistant restarts
+#   blocklists-mqtt state    publish both services' state once
+#   blocklists-mqtt offline  mark the router's entities unavailable
+#
+# Run by /etc/init.d/blocklists-mqtt (procd), one instance each for watch and
+# listen. There's no polling: adblock and banIP rewrite their runtime file on
+# every start, stop, reload, suspend and resume, whoever triggers it (these
+# switches, LuCI, the daily cron reload, a reboot), and inotifywait reports it.
+#
+# "Off" is temporary: adblock is suspended (its lists are kept, so resuming is
+# quick) and banIP is stopped. A restart, a reboot or the daily cron reload
+# can turn either back on.
+
+. /etc/blocklists-mqtt.conf
+
+BASE=router
+DISCOVERY=homeassistant
+AVAILABILITY="$BASE/blocklists/availability"
+ADB_DIR=/var/run/adblock
+BAN_DIR=/var/run/banIP
+ADB_RT="$ADB_DIR/adblock.runtime.json"
+BAN_RT="$BAN_DIR/banIP.runtime.json"
+
+mqtt_pub() {
+	mosquitto_pub -h "$MQTT_HOST" -p "$MQTT_PORT" -u "$MQTT_USER" -P "$MQTT_PASS" "$@"
+}
+
+# The runtime files print counts with a space as thousands separator ("341 997").
+digits() {
+	tr -cd '0-9'
+}
+
+# Each read_* sets status (the service's own word), state (ON/OFF) and count.
+read_adblock() {
+	status=$(jsonfilter -i "$ADB_RT" -e '@.adblock_status' 2>/dev/null)
+	count=$(jsonfilter -i "$ADB_RT" -e '@.blocked_domains' 2>/dev/null | digits)
+	case "$status" in
+		enabled | running) state=ON ;;
+		*) state=OFF count=0 ;; # paused, disabled, stopped, error
+	esac
+}
+
+read_banip() {
+	status=$(jsonfilter -i "$BAN_RT" -e '@.status' 2>/dev/null)
+	# "260 372 (chains: 7, sets: 16, rules: 45)": the number before the bracket
+	count=$(jsonfilter -i "$BAN_RT" -e '@.element_count' 2>/dev/null)
+	count=$(printf '%s' "${count%%(*}" | digits)
+	case "$status" in
+		active | processing) state=ON ;;
+		*) state=OFF count=0 ;; # stopped, disabled, error
+	esac
+}
+
+publish() { # adblock|banip
+	"read_$1"
+	mqtt_pub -r -t "$BASE/$1/state" \
+		-m "{\"state\":\"$state\",\"status\":\"${status:-unknown}\",\"count\":${count:-0}}"
+}
+
+publish_all() {
+	publish adblock
+	publish banip
+}
+
+publish_discovery() {
+	device='"device":{"identifiers":["openwrt_router"],"name":"Router","manufacturer":"OpenWrt"}'
+	avail="\"availability_topic\":\"$AVAILABILITY\""
+	for svc in adblock banip; do
+		case "$svc" in
+			adblock) label=Adblock icon=mdi:advertisements-off unit=domains ;;
+			banip) label=banIP icon=mdi:shield-lock unit=IPs ;;
+		esac
+		# Entity IDs come from "<device> <name>": switch.router_adblock,
+		# sensor.router_adblock_blocked, switch.router_banip, sensor.router_banip_blocked
+		mqtt_pub -r -t "$DISCOVERY/switch/router_$svc/config" -m "{\"name\":\"$label\",\"unique_id\":\"router_$svc\",\"icon\":\"$icon\",\"state_topic\":\"$BASE/$svc/state\",\"value_template\":\"{{ value_json.state }}\",\"json_attributes_topic\":\"$BASE/$svc/state\",\"command_topic\":\"$BASE/$svc/set\",$avail,$device}"
+		mqtt_pub -r -t "$DISCOVERY/sensor/router_${svc}_blocked/config" -m "{\"name\":\"$label blocked\",\"unique_id\":\"router_${svc}_blocked\",\"icon\":\"$icon\",\"state_topic\":\"$BASE/$svc/state\",\"value_template\":\"{{ value_json.count }}\",\"unit_of_measurement\":\"$unit\",\"state_class\":\"measurement\",$avail,$device}"
+	done
+}
+
+watch() {
+	# The services create these on their first run. Creating them first lets
+	# the watch start at boot, and covers a service that's disabled. If a
+	# service ever removes its directory, inotifywait exits and procd
+	# respawns this, which recreates it.
+	mkdir -p "$ADB_DIR" "$BAN_DIR"
+	publish_discovery
+	publish_all
+	inotifywait -m -q -e close_write -e moved_to --format '%w%f' "$ADB_DIR" "$BAN_DIR" |
+		while read -r file; do
+			# Each run writes its file more than once in quick succession
+			# (an empty {} first): let it settle before reading.
+			sleep 1
+			case "$file" in
+				"$ADB_RT") publish adblock ;;
+				"$BAN_RT") publish banip ;;
+			esac
+		done
+}
+
+listen() {
+	mqtt_pub -r -t "$AVAILABILITY" -m online
+	mosquitto_sub -h "$MQTT_HOST" -p "$MQTT_PORT" -u "$MQTT_USER" -P "$MQTT_PASS" \
+		--will-topic "$AVAILABILITY" --will-payload offline --will-retain \
+		-v -t "$BASE/adblock/set" -t "$BASE/banip/set" -t "$DISCOVERY/status" |
+		while read -r topic payload; do
+			case "$topic $payload" in
+				"$BASE/adblock/set ON") /etc/init.d/adblock resume ;;
+				"$BASE/adblock/set OFF") /etc/init.d/adblock suspend ;;
+				"$BASE/banip/set ON") /etc/init.d/banip start ;;
+				"$BASE/banip/set OFF") /etc/init.d/banip stop ;;
+				"$DISCOVERY/status online")
+					# Home Assistant (re)started: in case the broker lost the
+					# retained messages, send everything again.
+					publish_discovery
+					publish_all
+					mqtt_pub -r -t "$AVAILABILITY" -m online
+					continue
+					;;
+				"$DISCOVERY/status "*) continue ;;
+				*)
+					logger -t blocklists-mqtt "ignoring '$payload' on $topic"
+					continue
+					;;
+			esac
+			# The watch instance publishes the new state once the service
+			# has written it.
+			logger -t blocklists-mqtt "$topic $payload"
+		done
+}
+
+case "$1" in
+	watch) watch ;;
+	listen) listen ;;
+	state) publish_all ;;
+	offline) mqtt_pub -r -t "$AVAILABILITY" -m offline ;;
+	*)
+		echo "usage: $0 watch|listen|state|offline" >&2
+		exit 1
+		;;
+esac
