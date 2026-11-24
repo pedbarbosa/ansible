@@ -6,6 +6,7 @@ openwrt_packages_router:
   - collectd-mod-mqtt
   - collectd-mod-ping
   - collectd-mod-thermal
+  - inotifywait
   - mosquitto-client-nossl
 
 # openwrt/collectd.yml

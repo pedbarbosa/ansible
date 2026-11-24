@@ -5,13 +5,17 @@
 # MQTT discovery, so HA creates the entities itself), and switch them on and
 # off from Home Assistant.
 #
-#   blocklists-mqtt loop     publish discovery, then both services' state every 60s
-#   blocklists-mqtt listen   act on ON/OFF commands from Home Assistant
+#   blocklists-mqtt watch    publish discovery and state, then publish a
+#                            service's state whenever its runtime file changes
+#   blocklists-mqtt listen   act on ON/OFF commands from Home Assistant, and
+#                            republish everything when Home Assistant restarts
 #   blocklists-mqtt state    publish both services' state once
 #   blocklists-mqtt offline  mark the router's entities unavailable
 #
-# Run by /etc/init.d/blocklists-mqtt (procd), one instance each for loop and
-# listen.
+# Run by /etc/init.d/blocklists-mqtt (procd), one instance each for watch and
+# listen. There's no polling: adblock and banIP rewrite their runtime file on
+# every start, stop, reload, suspend and resume, whoever triggers it (these
+# switches, LuCI, the daily cron reload, a reboot), and inotifywait reports it.
 #
 # "Off" is temporary: adblock is suspended (its lists are kept, so resuming is
 # quick) and banIP is stopped. A restart, a reboot or the daily cron reload
@@ -19,13 +23,13 @@
 
 . /etc/blocklists-mqtt.conf
 
-INTERVAL=60
-DISCOVERY_EVERY=60 # republish discovery every hour of loops
 BASE=router
 DISCOVERY=homeassistant
 AVAILABILITY="$BASE/blocklists/availability"
-ADB_RT=/var/run/adblock/adblock.runtime.json
-BAN_RT=/var/run/banIP/banIP.runtime.json
+ADB_DIR=/var/run/adblock
+BAN_DIR=/var/run/banIP
+ADB_RT="$ADB_DIR/adblock.runtime.json"
+BAN_RT="$BAN_DIR/banIP.runtime.json"
 
 mqtt_pub() {
 	mosquitto_pub -h "$MQTT_HOST" -p "$MQTT_PORT" -u "$MQTT_USER" -P "$MQTT_PASS" "$@"
@@ -83,57 +87,64 @@ publish_discovery() {
 	done
 }
 
-loop() {
-	n=0
-	while :; do
-		[ $((n % DISCOVERY_EVERY)) -eq 0 ] && publish_discovery
-		publish_all
-		n=$((n + 1))
-		sleep "$INTERVAL"
-	done
-}
-
-# Commands run asynchronously (banIP takes ~35s to load its sets), so keep
-# publishing until the service reaches the wanted state, for up to 90s.
-publish_until() { # adblock|banip ON|OFF
-	i=0
-	while [ "$i" -lt 18 ]; do
-		sleep 5
-		publish "$1"
-		[ "$state" = "$2" ] && return
-		i=$((i + 1))
-	done
+watch() {
+	# The services create these on their first run. Creating them first lets
+	# the watch start at boot, and covers a service that's disabled. If a
+	# service ever removes its directory, inotifywait exits and procd
+	# respawns this, which recreates it.
+	mkdir -p "$ADB_DIR" "$BAN_DIR"
+	publish_discovery
+	publish_all
+	inotifywait -m -q -e close_write -e moved_to --format '%w%f' "$ADB_DIR" "$BAN_DIR" |
+		while read -r file; do
+			# Each run writes its file more than once in quick succession
+			# (an empty {} first): let it settle before reading.
+			sleep 1
+			case "$file" in
+				"$ADB_RT") publish adblock ;;
+				"$BAN_RT") publish banip ;;
+			esac
+		done
 }
 
 listen() {
 	mqtt_pub -r -t "$AVAILABILITY" -m online
 	mosquitto_sub -h "$MQTT_HOST" -p "$MQTT_PORT" -u "$MQTT_USER" -P "$MQTT_PASS" \
 		--will-topic "$AVAILABILITY" --will-payload offline --will-retain \
-		-v -t "$BASE/adblock/set" -t "$BASE/banip/set" |
+		-v -t "$BASE/adblock/set" -t "$BASE/banip/set" -t "$DISCOVERY/status" |
 		while read -r topic payload; do
 			case "$topic $payload" in
 				"$BASE/adblock/set ON") /etc/init.d/adblock resume ;;
 				"$BASE/adblock/set OFF") /etc/init.d/adblock suspend ;;
 				"$BASE/banip/set ON") /etc/init.d/banip start ;;
 				"$BASE/banip/set OFF") /etc/init.d/banip stop ;;
+				"$DISCOVERY/status online")
+					# Home Assistant (re)started: in case the broker lost the
+					# retained messages, send everything again.
+					publish_discovery
+					publish_all
+					mqtt_pub -r -t "$AVAILABILITY" -m online
+					continue
+					;;
+				"$DISCOVERY/status "*) continue ;;
 				*)
 					logger -t blocklists-mqtt "ignoring '$payload' on $topic"
 					continue
 					;;
 			esac
+			# The watch instance publishes the new state once the service
+			# has written it.
 			logger -t blocklists-mqtt "$topic $payload"
-			svc=${topic#"$BASE"/}
-			publish_until "${svc%/set}" "$payload"
 		done
 }
 
 case "$1" in
-	loop) loop ;;
+	watch) watch ;;
 	listen) listen ;;
 	state) publish_all ;;
 	offline) mqtt_pub -r -t "$AVAILABILITY" -m offline ;;
 	*)
-		echo "usage: $0 loop|listen|state|offline" >&2
+		echo "usage: $0 watch|listen|state|offline" >&2
 		exit 1
 		;;
 esac

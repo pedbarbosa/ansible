@@ -262,19 +262,24 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
 - `openwrt/banip.yml` (`/etc/config/banip`) is router-only (same `hosts:
   router` / `domain`-secret reasoning as `openwrt/adblock.yml` above).
 - `openwrt/blocklists_mqtt.yml` (router only) installs `blocklists-mqtt`, a
-  procd service with two instances: `loop` publishes adblock/banIP state and
-  counts (read from their `/var/run/*/*.runtime.json`) to `router/<svc>/state`
-  every 60s, plus Home Assistant MQTT discovery for `switch.router_adblock`,
-  `switch.router_banip` and their `sensor.router_*_blocked` counts; `listen`
-  subscribes to `router/<svc>/set` and runs `adblock suspend`/`resume` and
-  `banip stop`/`start`. "Off" is deliberately temporary (a reboot or the daily
-  cron reload can turn them back on). The script and init file are deployed
+  procd service with two instances. `watch` publishes Home Assistant MQTT
+  discovery (`switch.router_adblock`, `switch.router_banip` and their
+  `sensor.router_*_blocked` counts) and each service's state to
+  `router/<svc>/state`, then uses `inotifywait` on `/var/run/adblock` and
+  `/var/run/banIP` to republish whenever a runtime JSON is rewritten. There's
+  no polling: both services rewrite that file on every start, stop, reload,
+  suspend and resume, whoever triggers it. `listen` subscribes to
+  `router/<svc>/set` and runs `adblock suspend`/`resume` and `banip
+  stop`/`start` (the watcher then publishes the result), and to
+  `homeassistant/status`, republishing everything when HA comes back online in
+  case the broker lost its retained messages. "Off" is deliberately temporary
+  (a reboot or the daily cron reload can turn them back on). The script and init file are deployed
   with `community.openwrt.copy`, not `template`, because the script holds Home
   Assistant's own `{{ value_json... }}` templates; only
   `/etc/blocklists-mqtt.conf` (broker and credentials, mode 0600) is a
-  template. It reuses `openwrt_collectd_mqtt_host` but has its own MQTT user
-  (`openwrt_blocklists_mqtt_user`/`_password`), since this user can switch the
-  router's blocking off and should get a narrower broker ACL than collectd's.
+  template. It reuses collectd's broker and MQTT user
+  (`openwrt_collectd_mqtt_host`/`_user`/`_password`): a separate user would
+  isolate nothing, since both credentials live in plaintext on the same router.
   The service tasks carry `ignore_errors: "{{ ansible_check_mode }}"`: on a
   first check-mode run the init script isn't really copied, so there's no
   service yet to inspect.

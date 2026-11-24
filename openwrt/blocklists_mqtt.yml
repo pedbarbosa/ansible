@@ -1,7 +1,7 @@
 ---
 # adblock/banIP status, counts and on/off switches for Home Assistant over MQTT
 # (blocklists-mqtt) - router only, same reasoning as openwrt/adblock.yml.
-# mosquitto_pub/sub come from mosquitto-client-nossl in openwrt_packages_router
+# mosquitto_pub/sub and inotifywait come from openwrt_packages_router
 # (openwrt/default.yml).
 - hosts: router
   gather_facts: false
