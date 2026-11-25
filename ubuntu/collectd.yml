@@ -11,28 +11,6 @@
         name: collectd, lm-sensors
         state: present
 
-    # The sensors plugin only sees chips whose driver was loaded when collectd
-    # started, and Super I/O drivers (nct6775) don't load on their own
-    - name: collectd - load the sensor drivers at boot
-      copy:
-        content: |
-          # File managed by Ansible - https://github.com/pedbarbosa/ansible
-          {% for module in sensors_kernel_modules %}
-          {{ module }}
-          {% endfor %}
-        dest: /etc/modules-load.d/sensors.conf
-        owner: root
-        group: root
-        mode: 0644
-      notify: Restart collectd
-
-    - name: collectd - load the sensor drivers now
-      community.general.modprobe:
-        name: "{{ item }}"
-        state: present
-      loop: "{{ sensors_kernel_modules }}"
-      notify: Restart collectd
-
     - name: collectd - create group
       group:
         name: collectd
