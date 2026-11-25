@@ -36,6 +36,14 @@
         dest: /etc/collectd/collectd.conf.d
       notify: Restart collectd
 
+    # Sends every metric to VictoriaMetrics' Graphite listener (server-stack's
+    # monitoring profile)
+    - name: collectd - write_graphite module configuration
+      template:
+        src: files/collectd.conf.d/graphite.conf
+        dest: /etc/collectd/collectd.conf.d
+      notify: Restart collectd
+
     - name: collectd - interface module configuration
       template:
         src: files/collectd.conf.d/interface.conf
