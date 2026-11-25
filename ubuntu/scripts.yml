@@ -39,6 +39,7 @@
         mode: 0755
       loop:
         - files/bin/docker-update-all
+        - files/bin/kodi-library-scan
         - files/bin/openwrt-backup
         - files/bin/snap-clean
         # Shared with mac/scripts.yml
