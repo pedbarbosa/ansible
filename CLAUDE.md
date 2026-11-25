@@ -87,6 +87,13 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
     `.deb`) will fail with a missing-file error unless the `get_url`
     task is also forced with `check_mode: false` so the download
     actually happens.
+  - For a file `get_url` keeps up to date in place (no `checksum`), a dry
+    run always reports a change: check mode sends only a `HEAD` request,
+    so it compares the existing file with an empty download. `vim.yml`
+    (both platforms) fetches `plug.vim` with `uri` (`check_mode: false`,
+    a read) and writes it with `copy: content:`, which compares properly
+    in check mode. Registered results aren't templated again, so content
+    with `{{` in it is written as is.
   - `deb822_repository` fails outright without `python3-debian` on the
     target, even under `-C` (ansible-core 2.19 has no option to install it
     for you), so `ubuntu/default.yml` installs it with `check_mode: false`.

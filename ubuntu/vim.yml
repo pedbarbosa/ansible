@@ -13,7 +13,7 @@
 - name: ubuntu/vim (each dotfile user)
   hosts: all
   tasks:
-    # Created even in check mode: get_url fails if its destination folder is
+    # Created even in check mode: copy fails if its destination folder is
     # missing, so root's first dry run would otherwise always fail
     - name: vim - create autoload directory
       file:
@@ -27,11 +27,23 @@
       loop_control:
         loop_var: dotfile_user
 
-    - name: vim - install vim-plug
-      ansible.builtin.get_url:
+    # get_url can't tell in a dry run whether plug.vim changed: check mode only
+    # sends a HEAD request, compares the file with an empty download and always
+    # reports a change. So fetch it with uri (a read, safe in a dry run) and let
+    # copy compare it. No diff: an update would print the whole file.
+    - name: vim - download vim-plug
+      uri:
         url: https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+        return_content: yes
+      register: vim_plug
+      check_mode: false
+
+    - name: vim - install vim-plug
+      copy:
+        content: "{{ vim_plug.content }}"
         dest: ~/.vim/autoload/plug.vim
         mode: 0664
+      diff: false
       become: yes
       become_user: "{{ dotfile_user }}"
       loop: "{{ dotfile_users }}"
