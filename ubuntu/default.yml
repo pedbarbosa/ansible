@@ -51,7 +51,27 @@
         - "files/00-header"
         - "files/10-help-text"
         - "files/89-docker-info"
+        - "files/90-updates-available"
       notify: Update MOTD
+
+    # 90-updates-available reads counts that this script caches, since asking
+    # apt at every login is too slow. apt runs it through the hook below.
+    - name: bash - install the MOTD update counter
+      copy:
+        src: files/motd-updates-refresh
+        dest: /usr/local/sbin/motd-updates-refresh
+        owner: root
+        group: root
+        mode: 0755
+      notify: Refresh MOTD update counts
+
+    - name: bash - refresh the MOTD update counts after apt runs
+      copy:
+        src: files/99motd-updates
+        dest: /etc/apt/apt.conf.d/99motd-updates
+        owner: root
+        group: root
+        mode: 0644
 
     - name: ssh - configure service
       copy:
@@ -114,6 +134,10 @@
     - name: Reload sysctl
       become: yes
       command: sysctl -p
+
+    # Before "Update MOTD", so the first run already shows the counts
+    - name: Refresh MOTD update counts
+      command: /usr/local/sbin/motd-updates-refresh
 
     - name: Update MOTD
       become: yes

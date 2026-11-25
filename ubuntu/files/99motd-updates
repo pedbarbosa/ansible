@@ -1,0 +1,12 @@
+// File managed by Ansible - https://github.com/pedbarbosa/ansible
+//
+// Keeps the counts in /etc/update-motd.d/90-updates-available current, and
+// records when the package lists were last refreshed so it can warn when
+// they're stale.
+APT::Update::Post-Invoke-Success {
+    "mkdir -p /var/lib/motd-updates && touch /var/lib/motd-updates/last-update || true";
+    "/usr/local/sbin/motd-updates-refresh || true";
+};
+DPkg::Post-Invoke {
+    "/usr/local/sbin/motd-updates-refresh || true";
+};
