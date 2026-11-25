@@ -1,0 +1,78 @@
+---
+# Personal scripts in ~/bin (on the PATH via zshrc.j2). No play-level become,
+# so ~ is the account Ansible connects as.
+- name: ubuntu/scripts
+  hosts: all
+  vars_files:
+    - ../local/secrets.yml
+  tasks:
+    # jdupes: openwrt-backup removes duplicate backups with it
+    # nmap: dhcp-stragglers' port scans and MAC vendor list
+    - name: scripts - install the packages the scripts use
+      apt:
+        name: [jdupes, nmap]
+        state: present
+      become: yes
+
+    # ~/bin used to be a symlink to a clone of the old scripts repo. Remove the
+    # link itself (never its target) so the scripts below aren't written into
+    # that clone.
+    - name: scripts - check whether ~/bin is a symlink
+      stat:
+        path: ~/bin
+        follow: no
+      register: user_bin
+
+    - name: scripts - remove the old ~/bin symlink
+      file:
+        path: ~/bin
+        state: absent
+      when: user_bin.stat.islnk | default(false)
+
+    - name: scripts - ensure ~/bin exists
+      file:
+        path: ~/bin
+        state: directory
+        mode: 0755
+
+    - name: scripts - install scripts
+      copy:
+        src: "{{ item }}"
+        dest: "~/bin/{{ item | basename }}"
+        mode: 0755
+      loop:
+        - files/bin/docker-update-all
+        - files/bin/kodi-library-scan
+        - files/bin/openwrt-backup
+        - files/bin/snap-clean
+        # Shared with mac/scripts.yml
+        - "{{ playbook_dir }}/../files/bin/git-repos-check"
+        # Run by hand; kept with the OpenWrt playbooks it belongs to
+        - "{{ playbook_dir }}/../openwrt/tools/dhcp-stragglers"
+
+    # The login user's crontab. Each job is tracked by the "#Ansible: <name>"
+    # comment above it, so entries added by hand are left alone (and entries
+    # from before this play have to be removed by hand once). The jobs report
+    # to Slack themselves, so none of them pipe into slack-notify.
+    - name: scripts - schedule cron jobs
+      cron:
+        name: "{{ item.name }}"
+        minute: "{{ item.minute }}"
+        hour: "{{ item.hour }}"
+        job: "{{ item.job }}"
+      loop:
+        - { name: docker-update-all, minute: "0", hour: "5", job: "~/bin/docker-update-all" }
+        - { name: git-repos-check, minute: "5", hour: "7", job: "~/bin/git-repos-check" }
+        - { name: openwrt-backup, minute: "10", hour: "7", job: "~/bin/openwrt-backup" }
+        # From the server-stack repo, which it reads its settings from
+        - { name: update_certs, minute: "15", hour: "7", job: "~/git/server-stack/update_certs" }
+        - { name: kodi-library-scan, minute: "0", hour: "9,17", job: "~/bin/kodi-library-scan" }
+      loop_control:
+        label: "{{ item.name }}"
+
+    # openwrt-backup sources this file and refuses one others can write to
+    - name: scripts - configure openwrt-backup
+      template:
+        src: files/openwrt-backup.conf.j2
+        dest: ~/.openwrt-backup
+        mode: 0600

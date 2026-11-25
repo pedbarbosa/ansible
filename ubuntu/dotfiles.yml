@@ -1,0 +1,42 @@
+---
+# Dotfiles for the login user that no other playbook covers. No play-level
+# become, so ~ is the account Ansible connects as.
+- name: ubuntu/dotfiles
+  hosts: all
+  tasks:
+    # Shared with mac/default.yml
+    - name: dotfiles - configure .gitconfig
+      template:
+        src: "{{ playbook_dir }}/../files/gitconfig.j2"
+        dest: ~/.gitconfig
+        mode: 0640
+
+    # The mysql client's login to server-stack's MariaDB, with the root
+    # password read from server-stack's .env so it's kept in one place.
+    # Skipped until that repo is cloned.
+    - name: dotfiles - check for server-stack's .env
+      stat:
+        path: ~/git/server-stack/.env
+      register: server_stack_env
+
+    - name: dotfiles - read server-stack's .env
+      slurp:
+        src: ~/git/server-stack/.env
+      register: server_stack_env_content
+      when: server_stack_env.stat.exists
+      no_log: true
+
+    - name: dotfiles - extract the MariaDB root password
+      set_fact:
+        mysql_root_password: "{{ server_stack_env_content.content | b64decode | regex_search('(?m)^MYSQL_ROOT_PASSWORD=.*$') | default('', true) | regex_replace('^MYSQL_ROOT_PASSWORD=', '') | trim | trim('\"') | trim(\"'\") }}"
+      when: server_stack_env.stat.exists
+      no_log: true
+
+    # no_log also hides the -D diff, since the file holds the password
+    - name: dotfiles - configure .my.cnf
+      template:
+        src: files/my.cnf.j2
+        dest: ~/.my.cnf
+        mode: 0600
+      when: server_stack_env.stat.exists
+      no_log: true

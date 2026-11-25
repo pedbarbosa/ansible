@@ -1,0 +1,117 @@
+---
+# trcc-linux drives the display on the CPU cooler (Thermalright Assassin X 120 R
+# Digital), https://github.com/Lexonight1/thermalright-trcc-linux. Its daemon
+# runs as a systemd user unit, kept running without a login by lingering. No
+# play-level become, so ~ is the account Ansible connects as.
+- name: ubuntu/trcc
+  hosts: all
+  tasks:
+    - name: trcc - get the latest trcc-linux release
+      uri:
+        url: https://api.github.com/repos/Lexonight1/thermalright-trcc-linux/releases/latest
+        method: GET
+        return_content: yes
+      register: trcc_linux_latest
+      check_mode: false
+
+    # The plain .deb, not the .legacy one (for Ubuntu 24.04 and older, which
+    # don't ship PySide6)
+    - name: trcc - extract the trcc-linux deb asset
+      set_fact:
+        trcc_linux_deb_name: "{{ (trcc_linux_latest.json.assets | selectattr('name', 'match', '^trcc-linux_[0-9.]+-[0-9]+_all\\.deb$') | first).name }}"
+        trcc_linux_deb_url: "{{ (trcc_linux_latest.json.assets | selectattr('name', 'match', '^trcc-linux_[0-9.]+-[0-9]+_all\\.deb$') | first).browser_download_url }}"
+
+    - name: trcc - extract the trcc-linux package version
+      set_fact:
+        trcc_linux_version: "{{ trcc_linux_deb_name | regex_search('_([^_]+)_all\\.deb$', '\\1') | first }}"
+
+    - name: trcc - get the installed version of trcc-linux
+      command: dpkg-query -W -f='${Version}' trcc-linux
+      register: trcc_linux_installed_version
+      failed_when: false
+      changed_when: false
+
+    - name: trcc - download the latest trcc-linux package if needed
+      get_url:
+        url: "{{ trcc_linux_deb_url }}"
+        dest: "/tmp/{{ trcc_linux_deb_name }}"
+      when: trcc_linux_installed_version.stdout != trcc_linux_version
+      check_mode: false
+
+    # The package adds the udev rules and the trcc group they give the device to
+    - name: trcc - install trcc-linux if needed
+      apt:
+        deb: "/tmp/{{ trcc_linux_deb_name }}"
+      become: yes
+      when: trcc_linux_installed_version.stdout != trcc_linux_version
+      notify: trcc - Restart
+
+    # Releases before the trcc group didn't create it, and a dry run only
+    # simulates the upgrade that would, so check before adding the user to it
+    - name: trcc - check for the trcc group
+      getent:
+        database: group
+        key: trcc
+        fail_key: false
+
+    # The package's udev rules give the device to the trcc group (mode 0660),
+    # and udev's uaccess tag only reaches users at the machine's own screen, so
+    # the daemon needs the group. It runs under the lingering user manager,
+    # which only picks up a new group when it restarts.
+    - name: trcc - add the user to the trcc group
+      user:
+        name: "{{ ansible_facts['user_id'] }}"
+        groups: trcc
+        append: true
+      become: yes
+      when: not ansible_check_mode or ansible_facts['getent_group']['trcc'] is not none
+      notify: trcc - Restart the user manager
+
+    - name: trcc - keep the user's services running without a login
+      command: "loginctl enable-linger {{ ansible_facts['user_id'] }}"
+      args:
+        creates: "/var/lib/systemd/linger/{{ ansible_facts['user_id'] }}"
+      become: yes
+
+    - name: trcc - ensure ~/.config/systemd/user exists
+      file:
+        path: ~/.config/systemd/user
+        state: directory
+        mode: 0755
+
+    - name: trcc - install the trccd user unit
+      copy:
+        src: files/trccd.service
+        dest: ~/.config/systemd/user/trccd.service
+        mode: 0644
+      notify: trcc - Restart
+
+    - name: trcc - enable and start trccd
+      ansible.builtin.systemd_service:
+        name: trccd.service
+        scope: user
+        enabled: true
+        state: started
+        daemon_reload: true
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['user_uid'] }}"
+      when: not ansible_check_mode or trcc_linux_installed_version.rc == 0
+
+  handlers:
+    # Restarts the user's services (trccd starts again as it's enabled), not
+    # their logins: SSH sessions, Ansible's included, run outside it. Handlers
+    # run in the order listed, so this goes before trccd's own restart.
+    - name: trcc - Restart the user manager
+      ansible.builtin.systemd_service:
+        name: "user@{{ ansible_facts['user_uid'] }}.service"
+        state: restarted
+      become: yes
+
+    - name: trcc - Restart
+      ansible.builtin.systemd_service:
+        name: trccd.service
+        scope: user
+        state: restarted
+        daemon_reload: true
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts['user_uid'] }}"

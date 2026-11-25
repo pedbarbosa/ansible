@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- File managed by Ansible - https://github.com/pedbarbosa/ansible -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>{{ git_repos_check_label }}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{ home_dir }}/bin/git-repos-check</string>
+  </array>
+  <!-- Daily at 07:05, same as the server's cron job. A run missed while the
+       Mac was asleep happens when it wakes. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>7</integer>
+    <key>Minute</key>
+    <integer>5</integer>
+  </dict>
+  <!-- launchd's default PATH lacks Homebrew, so slack-notify's python3 would be
+       Apple's, without requests. The proxy/CA variables are for corporate Macs. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>{{ homebrew_prefix }}/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+{% for key, value in dotfile_env.items() %}
+    <key>{{ key | e }}</key>
+    <string>{{ value | e }}</string>
+{% endfor %}
+  </dict>
+  <key>StandardOutPath</key>
+  <string>{{ home_dir }}/Library/Logs/git-repos-check.log</string>
+  <key>StandardErrorPath</key>
+  <string>{{ home_dir }}/Library/Logs/git-repos-check.log</string>
+</dict>
+</plist>

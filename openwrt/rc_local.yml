@@ -7,7 +7,8 @@
 # than at the next boot. That's fine while everything in it can safely run
 # twice. community.openwrt.command doesn't support check mode, so a dry run
 # skips the handler.
-- hosts: router
+- name: openwrt/rc_local
+  hosts: router
   gather_facts: false
   tasks:
     - name: openwrt - Configure rc.local

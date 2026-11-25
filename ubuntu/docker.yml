@@ -1,15 +1,14 @@
 ---
-- hosts: all
+- name: ubuntu/docker
+  hosts: all
   become: yes
   become_user: root
+  vars_files:
+    - ../local/secrets.yml
   tasks:
-    - name: docker - read secrets from file
-      include_vars:
-        file: ../local/secrets.yml
-
     - name: docker - package requirements
       apt:
-        name: ca-certificates, curl
+        name: ca-certificates, curl, pciutils
         state: latest
         update_cache: yes
 
@@ -34,3 +33,46 @@
         name: "{{ main_user_account }}"
         groups: docker
         append: true
+
+    # GPU transcoding in Jellyfin (server-stack's README), only on hosts with an
+    # NVIDIA GPU: PCI vendor 10de, class 0300 (VGA) or 0302 (3D controller).
+    # A newly installed driver loads at the next reboot.
+    - name: docker - check for an NVIDIA GPU
+      command: "lspci -n -d 10de:"
+      register: nvidia_gpu
+      changed_when: false
+      check_mode: false
+
+    - name: docker - set up NVIDIA GPU support
+      when: "nvidia_gpu.stdout is search(' 030[02]: ')"
+      block:
+        - name: docker - add the NVIDIA container toolkit repository
+          ansible.builtin.deb822_repository:
+            name: nvidia-container-toolkit
+            types: deb
+            uris: https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH)
+            suites: /
+            signed_by: https://nvidia.github.io/libnvidia-container/gpgkey
+
+        - name: docker - install the NVIDIA driver and container toolkit
+          apt:
+            name: "{{ nvidia_driver_package }}, nvidia-container-toolkit"
+            state: present
+            update_cache: yes
+
+        # What `nvidia-ctk runtime configure --runtime=docker` writes
+        - name: docker - register the NVIDIA runtime with Docker
+          copy:
+            src: files/docker-daemon.json
+            dest: /etc/docker/daemon.json
+            owner: root
+            group: root
+            mode: 0644
+          notify: docker - Reload
+
+  handlers:
+    # Docker applies a runtimes change on reload, without restarting containers
+    - name: docker - Reload
+      service:
+        name: docker
+        state: reloaded

@@ -1,0 +1,493 @@
+#!/usr/bin/env python3
+"""List what was set up by hand on this Ubuntu machine, to decide what to bring into Ansible.
+
+It reads this repo's ubuntu playbooks only to leave out what they already
+manage, then lists:
+  1. Crontab lines added by hand (the user's, root's and /etc/cron.d)
+  2. systemd units that no package installed
+  3. Package config files changed from their defaults
+  4. Files that no package or playbook owns, in common config directories and /opt
+  5. apt packages installed by hand that no playbook installs, and snaps
+  6. Home dotfiles that no playbook deploys
+  7. /etc/fstab mounts missing from ubuntu/reference/fstab, and local users
+     and groups no playbook creates
+
+Everything printed is redacted: values from local/secrets.yml and
+server-stack's .env, the host and user names, IPs, MACs, UUIDs, emails and
+long tokens, so the output can be shared. Nothing is changed. Root-only files
+are read with `sudo -n`, so they're skipped (not prompted for) without
+passwordless sudo.
+
+Usage: ubuntu/tools/unmanaged-config [--env PATH-TO-server-stack/.env]
+"""
+import argparse
+import getpass
+import glob
+import gzip
+import hashlib
+import os
+import pwd
+import grp
+import re
+import shlex
+import socket
+import subprocess
+import sys
+from pathlib import Path
+
+try:
+    import jinja2
+    import yaml
+except ImportError as exc:
+    sys.exit(f"Missing Python module ({exc}): install python3-yaml and python3-jinja2")
+
+REPO = Path(__file__).resolve().parents[2]
+HOME = Path.home()
+USER = getpass.getuser()
+
+# Deployed by run.sh rather than a playbook
+RUN_SH_FILES = {str(HOME / ".ssh/config"), "/etc/ansible/hosts", f"/etc/sudoers.d/{USER}"}
+RUN_SH_PACKAGES = {"ansible", "sshpass"}
+
+# Directories where hand-made config usually ends up
+CONFIG_DIRS = [
+    "/etc/apt/keyrings", "/etc/apt/sources.list.d", "/etc/collectd/collectd.conf.d",
+    "/etc/cron.daily", "/etc/cron.hourly", "/etc/cron.weekly", "/etc/cron.monthly", "/etc/docker",
+    "/etc/logrotate.d", "/etc/modprobe.d", "/etc/modules-load.d", "/etc/netplan", "/etc/profile.d",
+    "/etc/security/limits.d", "/etc/ssh/sshd_config.d", "/etc/sudoers.d", "/etc/sysctl.d",
+    "/etc/syslog-ng/conf.d", "/etc/udev/rules.d", "/etc/update-motd.d",
+    "/usr/local/bin", "/usr/local/sbin", "/opt", str(HOME / "bin"),
+]
+
+# Home dotfiles that are state or history, not configuration
+DOTFILE_NOISE = re.compile(
+    r"^\.(bash_history|zsh_history|python_history|lesshst|viminfo|wget-hsts|sudo_as_admin_successful"
+    r"|zcompdump.*|motd_shown|selected_editor|mysql_history|node_repl_history|rediscli_history"
+    r"|fzf\.(bash|zsh)|bash_logout|zsh-update|shell\.pre-oh-my-zsh|Xauthority|ICEauthority)$"
+)
+
+# Home dotfiles deliberately kept out of Ansible
+DOTFILE_IGNORE = {
+    ".videolib.yml",  # github.com/pedbarbosa/videolib's own settings
+}
+
+FSTAB_REFERENCE = REPO / "ubuntu/reference/fstab"
+
+
+# ---------------------------------------------------------------- redaction
+
+class Redactor:
+    # Long runs of letters and digits (keys, tokens, hashes); paths aren't matched
+    TOKEN = re.compile(r"\b(?=[A-Za-z0-9+_=-]*\d)(?=[A-Za-z0-9+_=-]*[A-Za-z])[A-Za-z0-9+_=-]{32,}\b")
+    PATTERNS = [
+        (re.compile(r"https://hooks\.slack\.com/\S+"), "<slack-webhook>"),
+        (re.compile(r"\b[\w.+-]+@[\w-]+(\.[\w-]+)+\b"), "<email>"),
+        (re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b"), "<uuid>"),
+        (re.compile(r"\b([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}\b"), "<mac>"),
+        (re.compile(r"\b(?!127\.0\.0\.1\b)(?!0\.0\.0\.0\b)(\d{1,3}\.){3}\d{1,3}(/\d{1,2})?\b"), "<ip>"),
+    ]
+
+    def __init__(self):
+        self.pairs = {}   # replaced wherever they appear
+        self.words = {}   # short values, replaced only as whole words
+
+    def add(self, value, label):
+        if isinstance(value, (int, float, bool)) or value is None:
+            return
+        value = str(value).strip()
+        if value.isdigit() or value.lower() in {"true", "false", "none", "yes", "no", "/bin", "/usr"}:
+            return
+        if len(value) >= 4:
+            self.pairs.setdefault(value, f"<{label}>")
+        elif len(value) >= 2 and value.isalnum():
+            # Anywhere would mangle unrelated text; as a whole word it's safe
+            self.words.setdefault(value, (re.compile(rf"(?<![\w.-]){re.escape(value)}(?![\w.-])"), f"<{label}>"))
+
+    def add_tree(self, obj, label):
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                self.add_tree(value, f"{label}.{key}" if label else str(key))
+        elif isinstance(obj, list):
+            for i, value in enumerate(obj):
+                self.add_tree(value, f"{label}.{i}")
+        else:
+            self.add(obj, label)
+
+    def __call__(self, text):
+        text = str(text).replace(str(HOME), "~")
+        for value, label in sorted(self.pairs.items(), key=lambda p: -len(p[0])):
+            text = text.replace(value, label)
+        for pattern, label in self.words.values():
+            text = pattern.sub(label, text)
+        for pattern, label in self.PATTERNS:
+            text = pattern.sub(label, text)
+        # A token has a long unbroken run; hyphenated file names don't
+        return self.TOKEN.sub(lambda m: "<token>" if re.search(r"[A-Za-z0-9+=]{20,}", m.group(0)) else m.group(0), text)
+
+
+R = Redactor()
+
+
+def out(line=""):
+    print(R(line))
+
+
+def section(title):
+    out()
+    out(f"=== {title} " + "=" * max(0, 72 - len(title)))
+
+
+def items(lines, empty="none"):
+    lines = list(lines)
+    for line in lines:
+        out(f"    {line}")
+    if not lines:
+        out(f"    ({empty})")
+
+
+# ---------------------------------------------------------------- helpers
+
+def run(cmd, sudo=False):
+    """stdout of a command, or None if it's missing or fails."""
+    try:
+        res = subprocess.run((["sudo", "-n"] if sudo else []) + cmd, capture_output=True, text=True, errors="replace")
+    except FileNotFoundError:
+        return None
+    return res.stdout if res.returncode == 0 else None
+
+
+def read_file(path):
+    try:
+        return Path(path).read_text(errors="replace")
+    except FileNotFoundError:
+        return None
+    except PermissionError:
+        return run(["cat", str(path)], sudo=True)
+
+
+def md5_of(path):
+    try:
+        return hashlib.md5(Path(path).read_bytes()).hexdigest()
+    except FileNotFoundError:
+        return None
+    except (PermissionError, IsADirectoryError):
+        res = run(["md5sum", str(path)], sudo=True)
+        return res.split()[0] if res else "unreadable"
+
+
+def list_dir(directory):
+    paths = glob.glob(f"{directory}/*")
+    if not paths and Path(directory).is_dir() and not os.access(directory, os.R_OK):
+        names = run(["ls", "-1", directory], sudo=True) or ""
+        paths = [f"{directory}/{n}" for n in names.split()]
+    return sorted(paths)
+
+
+def package_owned_files():
+    owned = set()
+    for listfile in glob.glob("/var/lib/dpkg/info/*.list"):
+        with open(listfile, errors="replace") as fh:
+            owned.update(line.rstrip("\n") for line in fh)
+    return owned
+
+
+def load_yaml(path):
+    try:
+        return yaml.safe_load(Path(path).read_text()) or {}
+    except FileNotFoundError:
+        return {}
+
+
+def env_file_values(path):
+    values = {}
+    for line in (read_file(path) or "").splitlines():
+        m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", line.strip())
+        if m:
+            values[m.group(1)] = m.group(2).strip().strip('"').strip("'")
+    return values
+
+
+def crontab_lines(text):
+    return [l for l in (text or "").splitlines() if l.strip() and not l.lstrip().startswith("#")
+            and not re.match(r"^\s*[A-Z_]+=", l)]
+
+
+# ---------------------------------------------------------------- what the playbooks manage
+
+JINJA = jinja2.Environment(undefined=jinja2.StrictUndefined)
+JINJA.filters.update(basename=os.path.basename, quote=shlex.quote)
+
+
+def render(value, ctx):
+    if isinstance(value, str) and "{{" in value:
+        return JINJA.from_string(value).render(ctx)
+    return value
+
+
+def walk_tasks(tasks):
+    for task in tasks or []:
+        if "block" in task:
+            yield from walk_tasks(task["block"])
+            yield from walk_tasks(task.get("rescue"))
+            yield from walk_tasks(task.get("always"))
+        else:
+            yield task
+
+
+def name_hint(raw):
+    """Package or file name from a path built from facts set at run time, e.g.
+    "/tmp/mergerfs_{{ mergerfs_tag }}.deb" -> mergerfs,
+    "/tmp/{{ snapraid_daemon_deb_name }}" -> snapraid-daemon."""
+    base = os.path.basename(str(raw))
+    head = base.split("{{")[0].rstrip("_-.")
+    if not head:
+        m = re.search(r"{{\s*(\w+?)(_deb_name|_tarball|_file|_name)?\s*}}", base)
+        head = m.group(1) if m else ""
+    return head.replace("_", "-")
+
+
+def module_args(task, *names):
+    for name in names:
+        for key in (name, f"ansible.builtin.{name}", f"community.general.{name}"):
+            if isinstance(task.get(key), dict):
+                return task[key]
+    return None
+
+
+def managed_by_playbooks(base_ctx):
+    """Paths the ubuntu playbooks deploy, apt packages they install, cron job names,
+    and the users and groups they create or change."""
+    paths, packages, cron_names, accounts = set(RUN_SH_FILES), set(RUN_SH_PACKAGES), set(), set()
+    playbooks = [REPO / "ubuntu" / Path(e["import_playbook"]).name
+                 for e in load_yaml(REPO / "ubuntu.yml") if "import_playbook" in e]
+    for playbook in playbooks:
+        for play in load_yaml(playbook) or []:
+            ctx = dict(base_ctx, playbook_dir=str(playbook.parent), **(play.get("vars") or {}))
+            for task in walk_tasks((play.get("tasks") or []) + (play.get("handlers") or [])):
+                loop = task.get("loop", task.get("with_items", task.get("with_fileglob")))
+                var = (task.get("loop_control") or {}).get("loop_var", "item")
+                if loop is None:
+                    loop_items = [None]
+                elif isinstance(loop, list):
+                    loop_items = loop
+                else:
+                    loop_items = [USER] if "dotfile_users" in str(loop) else []
+                for item in loop_items:
+                    try:
+                        c = dict(ctx, **{var: render(item, ctx)}) if item is not None else ctx
+                        if (args := module_args(task, "copy", "template")) is not None and args.get("dest"):
+                            dest = Path(os.path.expanduser(render(args["dest"], c)))
+                            src = render(args.get("src") or "", c)
+                            # Deploying into a directory: dest/<file name>
+                            if str(args["dest"]).endswith("/") or dest.is_dir() or dest.name.endswith(".d"):
+                                dest = dest / os.path.basename(src)
+                            paths.add(str(dest))
+                        elif (args := module_args(task, "unarchive")) is not None and args.get("dest"):
+                            # The archive's contents aren't known here; assume it holds one
+                            # binary named after the archive (starship's release tarball does)
+                            dest = os.path.expanduser(render(args["dest"], c))
+                            paths.update({dest, f"{dest}/{name_hint(args.get('src', '')).split('-')[0]}"})
+                        elif (args := module_args(task, "file", "lineinfile", "blockinfile", "git",
+                                                  "get_url")) is not None:
+                            target = args.get("path") or args.get("dest")
+                            if target:
+                                paths.add(os.path.expanduser(render(target, c)))
+                        elif (args := module_args(task, "deb822_repository")) is not None:
+                            name = render(args["name"], c).lower().replace("_", "-").replace(" ", "-")
+                            paths.add(f"/etc/apt/sources.list.d/{name}.sources")
+                            # signed_by URLs are downloaded to /etc/apt/keyrings/<name>.asc|.gpg
+                            paths.update({f"/etc/apt/keyrings/{name}.asc", f"/etc/apt/keyrings/{name}.gpg"})
+                        elif (args := module_args(task, "apt")) is not None and args.get("deb"):
+                            packages.add(name_hint(args["deb"]))
+                        elif (args := module_args(task, "apt")) is not None and args.get("name"):
+                            names = render(args["name"], c)
+                            for n in (names if isinstance(names, list) else re.split(r"[,\s]+", names)):
+                                if n.strip() and "/" not in n:
+                                    packages.add(n.strip())
+                        elif (args := module_args(task, "cron")) is not None:
+                            cron_names.add(render(args["name"], c))
+                        elif (args := module_args(task, "user", "group")) is not None and args.get("name"):
+                            accounts.add(render(args["name"], c))
+                    except (jinja2.exceptions.UndefinedError, KeyError):
+                        continue
+    return paths, packages, cron_names, accounts
+
+
+# ---------------------------------------------------------------- report
+
+def report_cron(owned):
+    section("1. Crontab lines added by hand")
+    text = run(["crontab", "-l"])
+    if text is None and not Path("/usr/bin/crontab").exists():
+        out("    (crontab isn't installed)")
+    else:
+        lines, after_marker = [], False
+        for line in (text or "").splitlines():
+            if line.startswith("#Ansible: "):
+                after_marker = True
+                continue
+            if line.strip() and not line.lstrip().startswith("#"):
+                if not after_marker:
+                    lines.append(line)
+                after_marker = False
+        out(f"  {USER}'s crontab (outside the #Ansible entries):")
+        items(lines)
+        res = subprocess.run(["sudo", "-n", "crontab", "-l", "-u", "root"], capture_output=True, text=True)
+        out("  root's crontab:")
+        if res.returncode == 0 or "no crontab" in res.stderr:
+            items(crontab_lines(res.stdout), "empty")
+        else:
+            items([], "unreadable without passwordless sudo")
+    out("  /etc/cron.d files no package installed:")
+    items(f"{p}: {l}" for p in list_dir("/etc/cron.d") if p not in owned for l in crontab_lines(read_file(p)))
+
+
+def report_systemd(owned, managed):
+    section("2. systemd units no package installed")
+    units = []
+    for directory in ("/etc/systemd/system", str(HOME / ".config/systemd/user")):
+        for path in list_dir(directory):
+            p = Path(path)
+            # Symlinks and *.wants/ directories come from `systemctl enable`
+            if p.is_symlink() or path.endswith((".wants", ".requires")) or path in owned or path in managed:
+                continue
+            if p.is_dir() and path.endswith(".d"):
+                units.extend(f"{d}  (drop-in)" for d in list_dir(path) if d not in owned and d not in managed)
+            else:
+                state = (run(["systemctl", "is-enabled", p.name]) or "").strip() or "?"
+                if directory != "/etc/systemd/system":
+                    state = (run(["systemctl", "--user", "is-enabled", p.name]) or "").strip() or "?"
+                units.append(f"{path}  ({state})")
+    items(units)
+
+
+def report_conffiles(managed):
+    section("3. Package config files changed from their defaults")
+    changed, unreadable = [], 0
+    for line in (run(["dpkg-query", "-W", "-f=${Conffiles}\n"]) or "").splitlines():
+        parts = line.split()
+        if len(parts) < 2 or parts[0] in managed or {"obsolete", "remove-on-upgrade"} & set(parts[2:]):
+            continue
+        current = md5_of(parts[0])
+        if current == "unreadable":
+            unreadable += 1
+        elif current and current != parts[1]:
+            changed.append(parts[0])
+    items(changed)
+    if unreadable:
+        out(f"    ({unreadable} more couldn't be read without passwordless sudo)")
+
+
+def report_unowned(owned, managed):
+    section("4. Files no package or playbook owns, in config directories and /opt")
+    found = []
+    for directory in CONFIG_DIRS:
+        for path in list_dir(directory):
+            if path not in owned and path not in managed and not Path(path).is_symlink():
+                found.append(path + ("/" if Path(path).is_dir() else ""))
+    items(found)
+
+
+def report_packages(playbook_packages):
+    section("5. Packages installed by hand that no playbook installs")
+    manual = set((run(["apt-mark", "showmanual"]) or "").split())
+    initial = set()
+    try:
+        with gzip.open("/var/log/installer/initial-status.gz", "rt", errors="replace") as fh:
+            initial = {line.split(":", 1)[1].strip() for line in fh if line.startswith("Package:")}
+    except (FileNotFoundError, PermissionError):
+        out("  (no installer package list, so packages from the OS install are included)")
+    # Leave out the OS itself: base-priority packages, Ubuntu metapackages and kernels
+    base = set()
+    for line in (run(["dpkg-query", "-W", "-f=${Package} ${Priority}\n"]) or "").splitlines():
+        name, _, priority = line.partition(" ")
+        if priority in {"required", "important", "standard"} or re.match(r"^(ubuntu-|linux-(generic|image|headers))", name):
+            base.add(name)
+    extra = sorted({p.split(":")[0] for p in manual - initial} - playbook_packages - base)
+    out(f"  apt ({len(extra)}):")
+    for i in range(0, len(extra), 6):
+        out("    " + "  ".join(extra[i:i + 6]))
+    snaps = run(["snap", "list"])
+    if snaps is not None:
+        names = [l.split()[0] for l in snaps.splitlines()[1:] if l.split()
+                 and not re.match(r"^(core\d*|snapd|bare|gnome-.*|gtk-common-themes|lxd)$", l.split()[0])]
+        out(f"  snaps ({len(names)}): {', '.join(names) or 'none'}")
+
+
+def same_as_skel(path):
+    """True for an untouched copy of the installer's /etc/skel file (.bashrc, .profile)."""
+    skel = Path("/etc/skel") / path.name
+    try:
+        return skel.is_file() and skel.read_bytes() == path.read_bytes()
+    except OSError:
+        return False
+
+
+def report_home(managed):
+    section("6. Dotfiles in ~ that no playbook deploys")
+    items(str(p) for p in sorted(HOME.glob(".*"))
+          if p.is_file() and not DOTFILE_NOISE.match(p.name) and p.name not in DOTFILE_IGNORE
+          and str(p) not in managed and not same_as_skel(p))
+
+
+def fstab_entries(text):
+    """(mount point, line) for each entry in an fstab."""
+    return [(l.split()[1], " ".join(l.split())) for l in (text or "").splitlines()
+            if l.strip() and not l.lstrip().startswith("#") and len(l.split()) >= 2]
+
+
+def report_system(ctx, accounts):
+    section("7. Mounts, users and groups")
+    entries = fstab_entries(read_file("/etc/fstab"))
+    try:
+        reference = {m for m, _ in fstab_entries(JINJA.from_string(FSTAB_REFERENCE.read_text()).render(ctx))}
+    except (FileNotFoundError, jinja2.exceptions.TemplateError):
+        reference = None
+    if reference is None:
+        out(f"  /etc/fstab (couldn't render {FSTAB_REFERENCE.relative_to(REPO)} to compare):")
+        items(line for _, line in entries)
+    else:
+        out(f"  /etc/fstab mounts missing from {FSTAB_REFERENCE.relative_to(REPO)}:")
+        items(line for mount, line in entries if mount not in reference)
+        out(f"  {FSTAB_REFERENCE.relative_to(REPO)} mounts no longer in /etc/fstab:")
+        items(sorted(reference - {m for m, _ in entries}))
+    out("  Local users no playbook creates (UID 1000 and up):")
+    items(f"{u.pw_name}  (uid {u.pw_uid}, shell {u.pw_shell})" for u in pwd.getpwall()
+          if 1000 <= u.pw_uid < 60000 and u.pw_name not in accounts)
+    out("  Local groups no playbook creates (GID 1000 and up, besides users' own groups):")
+    users = {u.pw_name for u in pwd.getpwall()}
+    items(f"{g.gr_name}  (gid {g.gr_gid}, members: {', '.join(g.gr_mem) or '-'})"
+          for g in grp.getgrall() if 1000 <= g.gr_gid < 60000 and g.gr_name not in accounts | users)
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--env", default=str(HOME / "git/server-stack/.env"),
+                    help="server-stack .env whose values are redacted (default: %(default)s)")
+    args = ap.parse_args()
+
+    secrets = load_yaml(REPO / "local/secrets.yml")
+    R.add_tree(secrets, "secret")
+    R.add_tree(env_file_values(args.env), "env")
+    for name in {socket.gethostname(), socket.getfqdn(), socket.gethostname().split(".")[0]}:
+        R.add(name, "host")
+    R.add(USER, "user")
+
+    base_ctx = dict(load_yaml(REPO / "ubuntu/group_vars/all.yml"), **secrets, home_dir=str(HOME),
+                    ansible_facts={"user_id": USER, "env": {"HOME": str(HOME)}})
+    managed, playbook_packages, _, accounts = managed_by_playbooks(base_ctx)
+    owned = package_owned_files()
+
+    out(f"unmanaged-config: {len(managed)} paths managed by the ubuntu playbooks"
+        + ("" if secrets else " (no local/secrets.yml, so some couldn't be resolved and less is redacted)"))
+    report_cron(owned)
+    report_systemd(owned, managed)
+    report_conffiles(managed)
+    report_unowned(owned, managed)
+    report_packages(playbook_packages)
+    report_home(managed)
+    report_system(base_ctx, accounts)
+
+
+if __name__ == "__main__":
+    main()

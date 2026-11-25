@@ -1,5 +1,6 @@
 ---
-- hosts: all
+- name: ubuntu/security
+  hosts: all
   become: yes
   become_user: root
   tasks:

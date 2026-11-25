@@ -1,5 +1,6 @@
 ---
-- hosts: all
+- name: ubuntu/logrotate
+  hosts: all
   become: yes
   become_user: root
   tasks:

@@ -3,7 +3,8 @@
 # (blocklists-mqtt) - router only, same reasoning as openwrt/adblock.yml.
 # mosquitto_pub/sub and inotifywait come from openwrt_packages_router
 # (openwrt/default.yml).
-- hosts: router
+- name: openwrt/blocklists_mqtt
+  hosts: router
   gather_facts: false
   tasks:
     - name: openwrt - Configure blocklists-mqtt credentials

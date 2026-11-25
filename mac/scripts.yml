@@ -1,0 +1,61 @@
+---
+# Personal scripts in ~/bin (on the PATH via zshrc.j2). No play-level become,
+# so ~ is the account Ansible runs as.
+- name: mac/scripts
+  hosts: localhost
+  connection: local
+  vars:
+    git_repos_check_label: local.git-repos-check
+    git_repos_check_plist: "{{ home_dir }}/Library/LaunchAgents/{{ git_repos_check_label }}.plist"
+  tasks:
+    # ~/bin may still be a symlink to a clone of the old scripts repo. Remove
+    # the link itself (never its target) so the scripts below aren't written
+    # into that clone.
+    - name: scripts - check whether ~/bin is a symlink
+      stat:
+        path: ~/bin
+        follow: no
+      register: user_bin
+
+    - name: scripts - remove the old ~/bin symlink
+      file:
+        path: ~/bin
+        state: absent
+      when: user_bin.stat.islnk | default(false)
+
+    - name: scripts - ensure ~/bin exists
+      file:
+        path: ~/bin
+        state: directory
+        mode: 0755
+
+    - name: scripts - install scripts
+      copy:
+        src: "{{ item }}"
+        dest: "~/bin/{{ item | basename }}"
+        mode: 0755
+      loop:
+        # Shared with ubuntu/scripts.yml
+        - "{{ playbook_dir }}/../files/bin/git-repos-check"
+
+    # A launchd agent rather than cron: it runs a job missed during sleep on wake
+    - name: scripts - ensure ~/Library/LaunchAgents exists
+      file:
+        path: ~/Library/LaunchAgents
+        state: directory
+        mode: 0755
+
+    - name: scripts - schedule git-repos-check
+      template:
+        src: files/git-repos-check.plist.j2
+        dest: "{{ git_repos_check_plist }}"
+        mode: 0644
+      notify: scripts - reload the git-repos-check agent
+
+  handlers:
+    # launchd only reads a plist when it's loaded, so reload it after a change.
+    # bootout fails when the agent isn't loaded yet (first run), which is fine.
+    - name: scripts - reload the git-repos-check agent
+      shell: |
+        launchctl bootout gui/{{ ansible_facts['user_uid'] }}/{{ git_repos_check_label }} 2>/dev/null || true
+        launchctl bootstrap gui/{{ ansible_facts['user_uid'] }} {{ git_repos_check_plist | quote }}

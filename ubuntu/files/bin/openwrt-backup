@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+#
+# Back up /etc and /root from OpenWrt devices over ssh, then remove duplicate
+# backups (unchanged configs) with jdupes. Tells Slack only when something
+# fails, unless -v is given.
+#
+# Settings are read from ~/.openwrt-backup (or the file OPENWRT_BACKUP_CONFIG
+# names), which the ansible ubuntu playbook writes from its secrets. The file
+# is sourced as bash, must not be writable by group or others (chmod 600), and
+# needs:
+#
+#   # Existing directory the backups are written to. It's never created, so a
+#   # missing (e.g. unmounted) storage fails the run instead of filling the root disk.
+#   BACKUP_STORAGE=/path/to/backups/openwrt
+#
+#   # ssh hostnames (or ~/.ssh/config aliases) of the devices to back up.
+#   # Hostnames given on the command line replace this list.
+#   BACKUP_HOSTS=(router ap1 ap2)
+
+set -uo pipefail
+
+# Backups hold Wi-Fi keys, /etc/shadow and ssh keys: keep them private
+umask 077
+
+CONFIG_FILE="${OPENWRT_BACKUP_CONFIG:-$HOME/.openwrt-backup}"
+
+# Installed by the ansible ubuntu playbook; cron's PATH may not include /usr/local/bin
+SLACK_NOTIFY=$(command -v slack-notify || echo /usr/local/bin/slack-notify)
+
+usage() {
+    cat <<EOF
+Usage: $0 [-v] [-h] [hostname ...]
+  -v, --verbose   Print progress, and always send a Slack summary (also on success)
+  -h, --help      Show this help and exit
+
+Backs up the hosts given, or BACKUP_HOSTS from '$CONFIG_FILE' when none are.
+EOF
+}
+
+# Report a failure on stderr and to Slack
+notify_failure() {
+    echo "$1" >&2
+    if ! printf '🚨 openwrt-backup: %s\n' "$1" | "$SLACK_NOTIFY"; then
+        echo "WARNING: Failed to send the Slack notification" >&2
+    fi
+}
+
+die() { notify_failure "ERROR: $*"; exit 1; }
+
+# Parse command line arguments
+VERBOSE=false
+HOSTNAMES=()
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -v|--verbose) VERBOSE=true ;;
+        -h|--help) usage; exit 0 ;;
+        -*) usage >&2; exit 1 ;;
+        *) HOSTNAMES+=("$1") ;;
+    esac
+    shift
+done
+
+log() { if [[ "$VERBOSE" == true ]]; then echo "$*"; fi }
+
+# "a", "a and b", "a, b and c"
+join_names() {
+    local out="" name i=0
+    for name in "$@"; do
+        i=$((i + 1))
+        if (( i == 1 )); then
+            out=$name
+        elif (( i == $# )); then
+            out+=" and $name"
+        else
+            out+=", $name"
+        fi
+    done
+    printf '%s' "$out"
+}
+
+# Load and validate settings
+[[ -r "$CONFIG_FILE" ]] || die "Config file '$CONFIG_FILE' not found, see the header of $0 for its format"
+# It's sourced, so refuse a file other users could change
+[[ -z "$(find "$CONFIG_FILE" -perm /022)" ]] || die "Config file '$CONFIG_FILE' is writable by group or others"
+BACKUP_STORAGE=""
+BACKUP_HOSTS=()
+# shellcheck source=/dev/null
+source "$CONFIG_FILE"
+
+# Checked before anything writes or deletes there: jdupes removes files under this path
+[[ "$BACKUP_STORAGE" == /?* ]] || die "BACKUP_STORAGE must be an absolute path other than / in '$CONFIG_FILE'"
+[[ -d "$BACKUP_STORAGE" ]] || die "BACKUP_STORAGE '$BACKUP_STORAGE' doesn't exist (storage not mounted?)"
+[[ -w "$BACKUP_STORAGE" ]] || die "BACKUP_STORAGE '$BACKUP_STORAGE' isn't writable"
+
+if [[ ${#HOSTNAMES[@]} -eq 0 ]]; then
+    HOSTNAMES=("${BACKUP_HOSTS[@]}")
+fi
+[[ ${#HOSTNAMES[@]} -gt 0 ]] || die "No hosts given and BACKUP_HOSTS is empty in '$CONFIG_FILE'"
+
+FAILURES=()
+BACKED_UP=()
+
+# Back up a single device by streaming a tarball over ssh
+backup_host() {
+    local hostname=$1
+    local timestamp dest err
+
+    if [[ ! "$hostname" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+        FAILURES+=("$hostname: invalid hostname")
+        return 1
+    fi
+
+    timestamp=$(date '+%Y-%m-%d-%H%M%S')
+    dest="$BACKUP_STORAGE/${hostname}_${timestamp}.tgz"
+    log "Backing up $hostname..."
+
+    # Write to .part and rename on success, so a failed transfer never leaves a truncated backup
+    if ! err=$(ssh -o BatchMode=yes -o ConnectTimeout=10 "$hostname" 'tar -c -z -f - /etc/ /root/' 2>&1 >"$dest.part"); then
+        rm -f "$dest.part"
+        FAILURES+=("$hostname: ${err:-ssh failed}")
+        return 1
+    fi
+    if ! gzip -t "$dest.part" 2>/dev/null; then
+        rm -f "$dest.part"
+        FAILURES+=("$hostname: backup is empty or corrupt")
+        return 1
+    fi
+    mv "$dest.part" "$dest"
+
+    log "Successfully backed up $hostname"
+    BACKED_UP+=("$hostname")
+}
+
+for hostname in "${HOSTNAMES[@]}"; do
+    backup_host "$hostname"
+done
+
+# Remove duplicate backups, keeping the oldest copy of each
+if ! command -v jdupes >/dev/null 2>&1; then
+    echo "WARNING: Please install 'jdupes' to remove duplicates!" >&2
+else
+    log "Removing duplicate files..."
+    if JDUPES_OUTPUT=$(jdupes -rqdN "$BACKUP_STORAGE" 2>&1); then
+        if [[ -n "$JDUPES_OUTPUT" ]]; then
+            log "$JDUPES_OUTPUT"
+        fi
+    else
+        FAILURES+=("jdupes: ${JDUPES_OUTPUT:-failed}")
+    fi
+fi
+
+# Report results
+if [[ ${#FAILURES[@]} -eq 0 ]]; then
+    MESSAGE="openwrt-backup: backed up $(join_names "${BACKED_UP[@]}") to $BACKUP_STORAGE"
+    log "$MESSAGE"
+    if [[ "$VERBOSE" == true ]] && ! printf '%s\n' "$MESSAGE" | "$SLACK_NOTIFY"; then
+        echo "WARNING: Failed to send the Slack notification" >&2
+    fi
+    exit 0
+fi
+
+MESSAGE="Backup failed:"
+for failure in "${FAILURES[@]}"; do
+    MESSAGE+=$'\n'"• $failure"
+done
+notify_failure "$MESSAGE"
+exit 1

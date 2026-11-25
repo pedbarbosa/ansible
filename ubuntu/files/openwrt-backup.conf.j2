@@ -1,0 +1,7 @@
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+# Settings for ~/bin/openwrt-backup, which sources this file
+
+BACKUP_STORAGE={{ (storage_mount ~ '/Backups/OpenWRT') | quote }}
+
+# The router's hostname is set in openwrt/inventory.yml, the APs' in secrets
+BACKUP_HOSTS=({{ (['router'] + openwrt_ap_hosts | map(attribute='name') | list) | map('quote') | join(' ') }})

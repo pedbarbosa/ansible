@@ -1,0 +1,28 @@
+# The server's /etc/fstab, for reference. No playbook deploys it: mounts are
+# set up by hand when disks are added or replaced.
+#
+# Values in double braces are local/secrets.yml keys (ubuntu/tools/unmanaged-config
+# renders them to compare against the real file). <...> values are per-disk
+# IDs from /dev/disk/by-id or `blkid`, which stay on the server.
+#
+# The data disks and parity are ext4 under SnapRAID (ubuntu/pms.yml), pooled
+# by mergerfs at storage_mount. On the server the pool's branch list is a glob
+# matching the data mounts, which mergerfs expands itself.
+
+# <device>                                  <mount point>               <type>          <options>  <dump> <pass>
+/dev/disk/by-id/<root-lv>                   /                           ext4            defaults   0 1
+/dev/disk/by-uuid/<boot-uuid>               /boot                       ext4            defaults   0 1
+/swap.img                                   none                        swap            sw         0 0
+
+# server-stack's CONTAINERS_PATH, and scratch space
+UUID=<containers-uuid>                      /containers                 ext4            defaults   0 2
+UUID=<scratch-uuid>                         /scratch                    ext4            defaults   0 2
+
+# SnapRAID data and parity disks
+{% for disk in pms_data_mounts %}
+/dev/disk/by-id/<{{ disk.name }}-disk-id>   {{ disk.mount }}            ext4            defaults   0 0
+{% endfor %}
+/dev/disk/by-id/<parity-disk-id>            {{ pms_parity_mount }}      ext4            defaults   0 0
+
+# mergerfs pool of the data disks
+{{ pms_data_mounts | map(attribute='mount') | join(':') }}  {{ storage_mount }}  fuse.mergerfs  cache.files=off,dropcacheonclose=true,category.create=mfs,minfreespace=200G,fsname=mergerfs  0 0

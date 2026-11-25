@@ -1,16 +1,16 @@
 ---
-- hosts: all
+- name: ubuntu/collectd
+  hosts: all
   become: yes
   become_user: root
+  vars_files:
+    - ../local/secrets.yml
   tasks:
+    # lm-sensors: the sensors plugin reads its /etc/sensors3.conf
     - name: collectd - check if installed
       apt:
-        name: collectd
+        name: collectd, lm-sensors
         state: present
-
-    - name: collectd - read secrets from file
-      include_vars:
-        file: ../local/secrets.yml
 
     - name: collectd - create group
       group:
@@ -33,6 +33,14 @@
     - name: collectd - disk module configuration
       template:
         src: files/collectd.conf.d/disk.conf
+        dest: /etc/collectd/collectd.conf.d
+      notify: Restart collectd
+
+    # Sends every metric to VictoriaMetrics' Graphite listener (server-stack's
+    # monitoring profile)
+    - name: collectd - write_graphite module configuration
+      template:
+        src: files/collectd.conf.d/graphite.conf
         dest: /etc/collectd/collectd.conf.d
       notify: Restart collectd
 

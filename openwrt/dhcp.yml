@@ -5,7 +5,8 @@
 # (the sole DNS/DHCP authority); on APs it's neutered by dhcp.conf itself
 # (port '0', DHCP ignored for both VLANs) but that alone would leave a
 # do-nothing daemon running, so it's stopped/disabled too.
-- hosts: openwrt
+- name: openwrt/dhcp
+  hosts: openwrt
   gather_facts: false
   tasks:
     - name: openwrt - Configure dhcp

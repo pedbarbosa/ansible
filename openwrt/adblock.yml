@@ -1,5 +1,6 @@
 ---
-- hosts: router
+- name: openwrt/adblock
+  hosts: router
   gather_facts: false
   tasks:
     - name: openwrt - Configure adblock

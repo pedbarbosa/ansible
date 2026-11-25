@@ -1,7 +1,8 @@
 ---
 # root crontab - router only (adblock/banip periodic reloads; the APs don't
 # run either service)
-- hosts: router
+- name: openwrt/cron
+  hosts: router
   gather_facts: false
   tasks:
     - name: openwrt - Configure root crontab

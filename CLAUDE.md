@@ -16,25 +16,44 @@ server/workstation setup and a macOS workstation setup, one repo, run via
   Each entry is commented with the playbook/file(s) that consume it. When a
   change introduces a new secret-derived variable, update this file too.
 - For `ubuntu`/`mac`, vars sourced from secrets are only available in plays
-  that explicitly run an `include_vars: ../local/secrets.yml` task —
+  that load them with `vars_files: [../local/secrets.yml]` at play level —
   group_vars files can reference them (e.g. `is_corporate` in
   `mac/group_vars/all.yml` depends on `personal_hostnames` from secrets),
-  but the value only resolves in plays that load secrets first, due to
+  but the value only resolves in plays that load secrets, due to
   Ansible's lazy variable evaluation.
+  - Use `vars_files`, never an `include_vars` task: at `-v` an
+    `include_vars` task prints every value it loaded, passwords included,
+    and its facts also leak into later plays in the run, hiding a play that
+    forgot to load secrets. `vars_files` prints nothing and fails clearly
+    when the file is missing (`no_log` on the task would hide that error).
 - `openwrt` is the exception: `openwrt/group_vars/all/secrets.yml` is a
   symlink to `../../../local/secrets.yml`, so it's auto-loaded by Ansible's
   normal group_vars mechanism for every host in the play — no
-  `include_vars` task needed in any `openwrt/*.yml` playbook. This only
+  `vars_files` needed in any `openwrt/*.yml` playbook. This only
   works because every `openwrt` play lives in a file under `openwrt/`,
   which is what fixes the group_vars lookup's base directory to
   `openwrt/group_vars/`.
 - Exception: connection vars like `ansible_host` are needed *before* Ansible
-  can reach a host, so they can't wait on a play-level var (`include_vars`
+  can reach a host, so they can't wait on a play-level var (`vars_files`
   or group_vars) to resolve inside the play that targets it — see
   `openwrt/inventory.yml`'s `add_host` bootstrap below for the pattern used
   when secret data has to become inventory, not just task-level vars.
 
 ## Dry-run convention
+
+`ansible.cfg` turns off `display_ok_hosts` and `display_skipped_hosts`, so
+output shows only tasks that change something or fail; the default callback
+then holds back each task's banner until it has a result worth printing.
+When asking the user to paste output, remember that ok and skipped tasks
+won't be in it (they can add `ANSIBLE_DISPLAY_OK_HOSTS=true` and
+`ANSIBLE_DISPLAY_SKIPPED_HOSTS=true`). Ansible reads only the first config
+file it finds, so this one replaces any `~/.ansible.cfg` or
+`/etc/ansible/ansible.cfg` when run from the repo root.
+
+Every play has a `name:` of `<dir>/<file>` (e.g. `ubuntu/collectd`), with a
+short suffix in brackets when a file has more than one play. With the quiet
+output, the `PLAY [...]` banners are what shows progress through a run of
+many playbooks, and an unnamed play just prints its host pattern (`all`).
 
 `run.sh` always runs `ansible-playbook -CD <playbook>.yml` (check + diff)
 first and prints a reminder to re-run with `-v` to apply. Keep this
@@ -68,6 +87,13 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
     `.deb`) will fail with a missing-file error unless the `get_url`
     task is also forced with `check_mode: false` so the download
     actually happens.
+  - For a file `get_url` keeps up to date in place (no `checksum`), a dry
+    run always reports a change: check mode sends only a `HEAD` request,
+    so it compares the existing file with an empty download. `vim.yml`
+    (both platforms) fetches `plug.vim` with `uri` (`check_mode: false`,
+    a read) and writes it with `copy: content:`, which compares properly
+    in check mode. Registered results aren't templated again, so content
+    with `{{` in it is written as is.
   - `deb822_repository` fails outright without `python3-debian` on the
     target, even under `-C` (ansible-core 2.19 has no option to install it
     for you), so `ubuntu/default.yml` installs it with `check_mode: false`.
@@ -99,6 +125,56 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   and templates, then hand off the exact command for the user to run on a
   host that actually has access.
 
+## Personal scripts in `~/bin` (`ubuntu/scripts.yml`, `mac/scripts.yml`)
+
+- Ubuntu-only scripts live in `ubuntu/files/bin/`; `git-repos-check`, used
+  on both, lives in the top-level `files/bin/` (see the shared files section
+  below). Each play copies its list to the login user's `~/bin`, which
+  `zshrc.j2` puts on the `PATH`. They came from the old `pedbarbosa/scripts`
+  repo, which is being retired. Add new ones to the `loop` of the play(s)
+  that should get them.
+- `~/bin` used to be a symlink to a clone of that repo. Both plays remove the
+  symlink (never its target) before creating the real directory. Without
+  that, `copy` would follow the link and write into the old clone.
+- Shared convention: silent by default except for what's worth a message
+  (failures, and the containers `docker-update-all` restarted). `-v` prints
+  progress to the console *and* always sends a Slack summary, even when
+  there was nothing to do, so it doubles as a Slack connectivity check.
+  `-h` prints usage; an unknown option is an error. Exceptions:
+  `kodi-library-scan` never uses Slack, and `dhcp-stragglers` is an
+  interactive tool whose `-v` means "one field per line".
+- They run unattended from cron and report failures through `slack-notify`
+  (installed to `/usr/local/bin` by `ubuntu/default.yml` and
+  `mac/default.yml`). Cron's `PATH` may not include `/usr/local/bin`, so the
+  scripts fall back to that full path.
+- `ubuntu/scripts.yml` also owns the login user's crontab entries for
+  these scripts (plus server-stack's `update_certs`), via
+  `ansible.builtin.cron`. It only manages entries under its own
+  `#Ansible: <name>` markers, so don't expect it to remove hand-added lines;
+  change a schedule in the play, not with `crontab -e`. Since every job
+  reports to Slack itself, no cron line pipes into `slack-notify`.
+- On macOS, `mac/scripts.yml` schedules `git-repos-check` with a launchd
+  agent (`~/Library/LaunchAgents/local.git-repos-check.plist`, from
+  `mac/files/git-repos-check.plist.j2`) rather than cron, because launchd
+  runs a job missed during sleep when the Mac wakes. launchd's default `PATH`
+  lacks Homebrew, which `slack-notify`'s `python3` (with `requests`) needs,
+  so the plist sets `PATH` and passes `dotfile_env`'s proxy/CA variables for
+  corporate Macs. A handler reloads the agent (`launchctl bootout` +
+  `bootstrap`) when the plist changes. Output goes to
+  `~/Library/Logs/git-repos-check.log`.
+- `git-repos-check` also runs on macOS, where cron may use `/bin/bash` 3.2:
+  no associative arrays, `mapfile` or `${var,,}`, and expand possibly-empty
+  arrays under `set -u` as `${a[@]+"${a[@]}"}`. On a Mac, pyenv and rbenv
+  come from Homebrew, so their directories aren't git checkouts and the
+  script skips them.
+- Settings that are private (paths, hostnames) stay out of the scripts:
+  `openwrt-backup` sources `~/.openwrt-backup`, which the play renders
+  (mode 0600) from `files/openwrt-backup.conf.j2` using `storage_mount` and
+  the AP names in `openwrt_ap_hosts`. The router's ssh name is the literal
+  `router`, same as `openwrt/inventory.yml`'s `openwrt_hostname`. The
+  backup directory itself isn't created by Ansible: the script deliberately
+  fails if it's missing, so an unmounted pool doesn't fill the root disk.
+
 ## Shared files across mac/ubuntu
 
 - When a file is identical (or near-identical) between `mac/` and `ubuntu/`
@@ -128,7 +204,7 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
 - No committed inventory file — `openwrt/inventory.yml` runs first (against
   `localhost`), reads `openwrt_router_host`/`openwrt_ap_hosts` from
   `local/secrets.yml` (auto-loaded, see `## Secrets` above — no
-  `include_vars` needed even here), and `add_host`s the router + APs into
+  `vars_files` needed even here), and `add_host`s the router + APs into
   the `openwrt`/`router`/`ap` groups at runtime. This keeps real
   IPs/hostnames out of the repo without a second gitignored file alongside
   `local/secrets.yml`. `group_vars`
@@ -141,7 +217,7 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
     is since `group_vars/router.yml` and the `'router' in group_names`
     checks depend on it. Don't refer to the device itself as `gateway`
     anywhere else. The AP inventory names (from `openwrt_ap_hosts[].name`
-    in secrets, e.g. `ap-upstairs`) don't collide with the `ap` group name,
+    in secrets, e.g. `ap1`) don't collide with the `ap` group name,
     so they're unaffected.
 - `openwrt/default.yml` runs an explicit `apk update` as a `pre_task`,
   before the `community.openwrt.init` role. This repo now targets OpenWrt
@@ -256,9 +332,10 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
 - `openwrt/adblock.yml` (`/etc/config/adblock`) targets `hosts: router`
   directly (not `openwrt` gated by a `group_names` check) since it's the
   only file so far that doesn't apply to the APs at all. `adb_mailreceiver`/
-  `adb_mailsender` are `admin@{{ domain }}`/`router@{{ domain }}`, reusing
-  the same `domain` secret as `ubuntu/collectd.yml` rather than adding a
-  new one, per explicit request.
+  `adb_mailsender` are `admin@{{ domain }}`/`router@{{ domain }}`, using the
+  shared `domain` secret (also used by `banip.yml` and `dhcp.yml`; it was
+  first added for the since-removed collectd Apache plugin) rather than
+  adding a new one, per explicit request.
 - `openwrt/banip.yml` (`/etc/config/banip`) is router-only (same `hosts:
   router` / `domain`-secret reasoning as `openwrt/adblock.yml` above).
 - `openwrt/blocklists_mqtt.yml` (router only) installs `blocklists-mqtt`, a
@@ -426,8 +503,42 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   deployed with `copy`. On change, a handler runs it straight away with
   `community.openwrt.command`, which a dry run skips. Keep everything in
   `rc.local` safe to run twice for that reason.
+- `ubuntu/tools/unmanaged-config` (not installed anywhere, run from the
+  clone on the server) lists what was set up by hand and isn't in the
+  ubuntu playbooks: hand-added crontab lines, systemd units and config files
+  no package installed, changed package conffiles, packages installed by
+  hand, home dotfiles, mounts, users and groups. It parses the playbooks to
+  skip what they manage, so keep it in step when adding a module type that
+  deploys files. It's read-only and redacts its output (secrets.yml and
+  server-stack `.env` values, host/user names, IPs, MACs, UUIDs, tokens).
+  - It skips dotfiles identical to `/etc/skel`'s and those in
+    `DOTFILE_IGNORE` (kept out of Ansible on purpose, e.g. `.videolib.yml`),
+    and users and groups any `user`/`group` task names.
+  - Mounts are compared with `ubuntu/reference/fstab`, which it renders with
+    secrets.yml. Update that file when a disk is added or replaced: no
+    playbook deploys fstab.
+- Tasks that change config with a `command` (or anything the tool doesn't
+  parse) aren't seen as managing a file, so prefer `copy`/`template` with
+  the known result: `/etc/docker/daemon.json` is copied with what
+  `nvidia-ctk runtime configure --runtime=docker` writes, rather than
+  running it.
+- `ubuntu/dotfiles.yml` reads `MYSQL_ROOT_PASSWORD` from
+  `~/git/server-stack/.env` on the server for `~/.my.cnf`, so the password
+  lives in one place and not in secrets.yml. The extraction avoids regex
+  backreferences, so there's no YAML-plus-Jinja backslash escaping to get
+  right. `no_log` hides those tasks' diffs.
+- `ubuntu/trcc.yml` installs `trcc-linux` from its latest GitHub release
+  (the plain `_all.deb`; the `.legacy` one is for Ubuntu 24.04 and older)
+  and runs `trccd` as a systemd user unit. That needs lingering
+  (`loginctl enable-linger`) and the user in the package's `trcc` group,
+  since udev's `uaccess` only covers a local seat. The lingering user
+  manager keeps the groups it started with, so adding the group notifies a
+  handler that restarts `user@<uid>.service`; without it `trccd` finds no
+  device. Releases before the group existed didn't create it, so a dry run
+  checks for it with `getent` before adding the user.
 - `openwrt/tools/dhcp-stragglers` is a standalone Python 3 script (stdlib
-  only), not a playbook. It runs a BusyBox `sh` heredoc on the router over
+  only), not a playbook. `ubuntu/scripts.yml` copies it into `~/bin` on
+  Ubuntu and installs `nmap` for it, so edit it here, not the copy. It runs a BusyBox `sh` heredoc on the router over
   `ssh <host> sh -s` to list MACs in the neighbour table or lease file that
   have no `config host`/`/etc/ethers` entry. Then, from the local machine,
   it adds the MAC vendor (offline, nmap's or ieee-data's OUI list), reverse

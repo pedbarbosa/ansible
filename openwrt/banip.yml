@@ -1,5 +1,6 @@
 ---
-- hosts: router
+- name: openwrt/banip
+  hosts: router
   gather_facts: false
   tasks:
     - name: openwrt - Configure banip

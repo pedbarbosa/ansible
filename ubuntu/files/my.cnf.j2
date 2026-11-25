@@ -1,0 +1,9 @@
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+# server-stack's MariaDB; the password is MYSQL_ROOT_PASSWORD from its .env
+
+[client]
+host=127.0.0.1
+port=3306
+protocol=tcp
+user=root
+password="{{ mysql_root_password }}"

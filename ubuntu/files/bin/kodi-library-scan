@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+#
+# Ask Kodi (the kodi container in server-stack) to scan its video library for
+# new files. Kodi answers as soon as the scan starts; the scan itself runs in
+# the background. Errors go to stderr only: this script doesn't use Slack.
+
+set -uo pipefail
+
+# The port server-stack publishes for Kodi's web server and JSON-RPC
+KODI_URL="${KODI_JSONRPC_URL:-http://127.0.0.1:8088/jsonrpc}"
+REQUEST='{"jsonrpc":"2.0","method":"VideoLibrary.Scan","id":1}'
+
+usage() {
+    cat <<EOF
+Usage: $0 [-v] [-h]
+  -v    Print the request and Kodi's reply
+  -h    Show this help and exit
+
+Set KODI_JSONRPC_URL to use another address (default: $KODI_URL).
+EOF
+}
+
+VERBOSE=false
+while getopts "vh" opt; do
+    case "$opt" in
+        v) VERBOSE=true ;;
+        h) usage; exit 0 ;;
+        *) usage >&2; exit 1 ;;
+    esac
+done
+
+log() { if [[ "$VERBOSE" == true ]]; then echo "$*"; fi }
+
+log "Sending $REQUEST to $KODI_URL"
+if ! RESPONSE=$(curl -fsS --max-time 30 -H 'Content-Type: application/json' -d "$REQUEST" "$KODI_URL" 2>&1); then
+    echo "ERROR: Kodi didn't answer at $KODI_URL: $RESPONSE" >&2
+    exit 1
+fi
+log "Kodi replied: $RESPONSE"
+
+if ! grep -q '"result" *: *"OK"' <<< "$RESPONSE"; then
+    echo "ERROR: Kodi didn't start the scan: $RESPONSE" >&2
+    exit 1
+fi

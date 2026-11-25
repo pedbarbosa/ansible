@@ -1,0 +1,20 @@
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+# Based on trcc-linux's packaging/systemd/trccd.service
+
+[Unit]
+Description=TRCC Linux background service
+Documentation=https://github.com/Lexonight1/thermalright-trcc-linux
+
+[Service]
+Type=simple
+# No path: systemd looks in its own search path, /usr/local/bin before
+# /usr/bin. The .deb installs to /usr/local/bin, not the /usr/bin of
+# upstream's sample unit.
+ExecStart=trcc daemon
+Restart=on-failure
+RestartSec=5
+# Lets the daemon start without a graphical session
+Environment=QT_QPA_PLATFORM=offscreen
+
+[Install]
+WantedBy=default.target

@@ -4,6 +4,10 @@ Include /etc/ssh/sshd_config.d/*.conf
 
 ChallengeResponseAuthentication no
 UsePAM yes
+# Set here rather than by cloud-init's sshd_config.d/50-cloud-init.conf, which
+# ubuntu/default.yml removes. sshd keeps the first value it reads, so a file
+# in sshd_config.d (included above) would override this line.
+PasswordAuthentication yes
 
 X11Forwarding yes
 PrintMotd yes

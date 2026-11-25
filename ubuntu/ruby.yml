@@ -1,5 +1,6 @@
 ---
-- hosts: all
+- name: ubuntu/ruby (packages)
+  hosts: all
   become: yes
   become_user: root
   tasks:
@@ -15,7 +16,8 @@
         state: present
         update_cache: true
 
-- hosts: all
+- name: ubuntu/ruby (rbenv)
+  hosts: all
   tasks:
     - name: ruby - install rbenv
       ansible.builtin.shell: >

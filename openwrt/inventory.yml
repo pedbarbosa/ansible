@@ -1,5 +1,5 @@
 ---
-- name: Build OpenWrt inventory from secrets
+- name: openwrt/inventory (from secrets)
   hosts: localhost
   connection: local
   gather_facts: false

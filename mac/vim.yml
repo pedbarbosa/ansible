@@ -1,5 +1,6 @@
 ---
-- hosts: localhost
+- name: mac/vim
+  hosts: localhost
   connection: local
   tasks:
     - name: Check if vim is installed
@@ -8,7 +9,7 @@
         state: present
 
     # The tasks below run once per account in dotfile_users (the login user and root)
-    # Created even in check mode: get_url fails if its destination folder is
+    # Created even in check mode: copy fails if its destination folder is
     # missing, so root's first dry run would otherwise always fail
     - name: Ensure .vim/autoload directory exists
       file:
@@ -33,13 +34,24 @@
       loop_control:
         loop_var: dotfile_user
 
-    # Fetches the latest plug.vim each run; only reports changed when it differs
-    - name: Install vim-plug
-      ansible.builtin.get_url:
+    # get_url can't tell in a dry run whether plug.vim changed: check mode only
+    # sends a HEAD request, compares the file with an empty download and always
+    # reports a change. So fetch it with uri (a read, safe in a dry run) and let
+    # copy compare it. No diff: an update would print the whole file.
+    - name: Download vim-plug
+      uri:
         url: https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+        return_content: yes
+      register: vim_plug
+      check_mode: false
+
+    # Only reports changed when the latest plug.vim differs
+    - name: Install vim-plug
+      copy:
+        content: "{{ vim_plug.content }}"
         dest: ~/.vim/autoload/plug.vim
         mode: 0640
-      environment: "{{ dotfile_env }}"
+      diff: false
       become: yes
       become_user: "{{ dotfile_user }}"
       loop: "{{ dotfile_users }}"

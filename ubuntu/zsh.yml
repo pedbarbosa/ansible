@@ -1,7 +1,10 @@
 ---
-- hosts: all
+- name: ubuntu/zsh (zsh, starship and login shell)
+  hosts: all
   become: yes
   become_user: root
+  vars_files:
+    - ../local/secrets.yml
   tasks:
     - name: zsh - check if installed
       apt:
@@ -50,10 +53,6 @@
         mode: 0755
       when: starship_installed_version != starship_version
 
-    - name: zsh - read secrets from file
-      include_vars:
-        file: ../local/secrets.yml
-
     - name: zsh - set default shell
       user:
         name: "{{ item }}"
@@ -63,7 +62,8 @@
         - root
 
 # Runs once per account in dotfile_users (the login user and root)
-- hosts: all
+- name: ubuntu/zsh (each dotfile user)
+  hosts: all
   tasks:
     - name: zsh - configure zshrc
       template:
