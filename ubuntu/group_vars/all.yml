@@ -28,3 +28,10 @@ zsh_plugins:
 # ubuntu/docker.yml, on hosts with an NVIDIA GPU. The version server-stack's
 # README installs for Jellyfin's transcoding.
 nvidia_driver_package: nvidia-driver-580
+
+# ubuntu/collectd.yml - drivers for the sensors plugin, from
+# `sudo sensors-detect --auto`: coretemp for the CPU cores, nct6775 for the
+# board's Nuvoton NCT6791D (fans, board temperatures, voltages)
+sensors_kernel_modules:
+  - coretemp
+  - nct6775
