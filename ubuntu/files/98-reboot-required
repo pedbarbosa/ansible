@@ -1,0 +1,40 @@
+#!/bin/sh
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+#
+# Replaces update-notifier's 98-reboot-required, which Ubuntu 26.04 no
+# longer ships, in the same style as 89-docker-info. Prints nothing unless a
+# reboot is needed.
+#
+# Without update-notifier nothing creates /var/run/reboot-required after a
+# kernel upgrade, so this also compares the running kernel with the newest one
+# in /boot. It's still read, in case another package creates it.
+
+# 24-bit colours from the gruvbox_dark palette in starship.toml
+blue='131;165;152'
+red='204;36;29'
+
+e=$(printf '\033')
+fg() { printf '%s[38;2;%sm' "$e" "$1"; }
+bold="${e}[1m"
+rs="${e}[0m"
+restart=$(printf '\363\260\234\211')  # U+F0709 Nerd Font restart
+
+running=$(uname -r)
+newest=$(find /boot -maxdepth 1 -name 'vmlinuz-*' -printf '%f\n' 2>/dev/null \
+    | sed 's/^vmlinuz-//' | sort -V | tail -n 1)
+
+reason=
+if [ -n "$newest" ] && [ "$newest" != "$running" ]; then
+    reason="kernel $newest is installed, $running is running"
+fi
+
+if [ -s /var/run/reboot-required.pkgs ]; then
+    pkgs=$(sort -u /var/run/reboot-required.pkgs | paste -sd ' ' | sed 's/ /, /g')
+    reason="${reason:+$reason; }for $pkgs"
+elif [ -e /var/run/reboot-required ] && [ -z "$reason" ]; then
+    reason="requested by a package"
+fi
+
+[ -n "$reason" ] || exit 0
+
+printf '%s\n' "${bold}$(fg $blue)${restart} Reboot:${rs} ${bold}$(fg $red)required${rs} ($reason)."

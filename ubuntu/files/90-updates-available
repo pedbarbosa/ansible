@@ -1,0 +1,44 @@
+#!/bin/sh
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+#
+# Replaces update-notifier's 90-updates-available, which Ubuntu 26.04 no
+# longer ships, in the same style as 89-docker-info. The counts come from
+# /usr/local/sbin/motd-updates-refresh, which apt runs after every update,
+# install and upgrade (/etc/apt/apt.conf.d/99motd-updates).
+
+dir=/var/lib/motd-updates
+[ -r "$dir/counts" ] || exit 0
+read -r total security < "$dir/counts"
+
+# 24-bit colours from the gruvbox_dark palette in starship.toml
+blue='131;165;152'
+green='152;151;26'
+red='204;36;29'
+yellow='215;153;33'
+
+e=$(printf '\033')
+fg() { printf '%s[38;2;%sm' "$e" "$1"; }
+bold="${e}[1m"
+rs="${e}[0m"
+package=$(printf '\363\260\217\227')  # U+F03D7 Nerd Font package, as in starship's nerd-font preset
+
+if [ "$total" -eq 0 ]; then
+    uMessage="${bold}$(fg $green)up to date${rs}."
+else
+    if [ "$total" -eq 1 ]; then uPackages="package"; else uPackages="packages"; fi
+    uMessage="${bold}$(fg $yellow)$total upgradable $uPackages${rs}"
+    if [ "$security" -ne 0 ]; then
+        uMessage="$uMessage, ${bold}$(fg $red)$security security${rs}"
+    fi
+    uMessage="$uMessage."
+fi
+
+# Same 7-day threshold as update-notifier's notify-updates-outdated
+if [ -e "$dir/last-update" ]; then
+    days=$(( ($(date +%s) - $(stat -c %Y "$dir/last-update")) / 86400 ))
+    if [ "$days" -ge 7 ]; then
+        uMessage="$uMessage ${bold}$(fg $red)Package lists are $days days old${rs}, run sudo apt update."
+    fi
+fi
+
+printf '%s\n' "${bold}$(fg $blue)${package} Updates:${rs} $uMessage"

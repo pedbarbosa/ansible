@@ -1,0 +1,20 @@
+#!/bin/sh
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+#
+# Counts the upgradable packages for /etc/update-motd.d/90-updates-available.
+# Asking apt takes too long to do at every login, so apt runs this after each
+# update, install and upgrade (/etc/apt/apt.conf.d/99motd-updates) and the
+# MOTD only reads the result: "<upgradable> <security>".
+
+dir=/var/lib/motd-updates
+mkdir -p "$dir" || exit 1
+
+# Simulated dist-upgrade, as update-notifier counted. NoLocking lets it run
+# from the dpkg hook while apt still holds the lock.
+sim=$(apt-get -s -o Debug::NoLocking=true dist-upgrade 2>/dev/null) || exit 1
+
+# One "Inst" line per package, listing every archive that has the new version
+total=$(printf '%s\n' "$sim" | grep -c '^Inst ')
+security=$(printf '%s\n' "$sim" | grep '^Inst ' | grep -c -- '/[a-z]*-security')
+
+printf '%s %s\n' "$total" "$security" > "$dir/counts.tmp" && mv "$dir/counts.tmp" "$dir/counts"
