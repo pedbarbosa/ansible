@@ -477,6 +477,14 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   deployed with `copy`. On change, a handler runs it straight away with
   `community.openwrt.command`, which a dry run skips. Keep everything in
   `rc.local` safe to run twice for that reason.
+- `ubuntu/tools/unmanaged-config` (not installed anywhere, run from the
+  clone on the server) lists what was set up by hand and isn't in the
+  ubuntu playbooks: hand-added crontab lines, systemd units and config files
+  no package installed, changed package conffiles, packages installed by
+  hand, home dotfiles, mounts, users and groups. It parses the playbooks to
+  skip what they manage, so keep it in step when adding a module type that
+  deploys files. It's read-only and redacts its output (secrets.yml and
+  server-stack `.env` values, host/user names, IPs, MACs, UUIDs, tokens).
 - `openwrt/tools/dhcp-stragglers` is a standalone Python 3 script (stdlib
   only), not a playbook. `ubuntu/scripts.yml` copies it into `~/bin` on
   Ubuntu and installs `nmap` for it, so edit it here, not the copy. It runs a BusyBox `sh` heredoc on the router over
