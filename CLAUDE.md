@@ -378,9 +378,12 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
     radio with that band. It matches by band, not by radio name, because
     `radio0` isn't the 2.4 GHz radio on every device. Section names are
     `<iface>_<radio>` (e.g. `default_radio1`, `iot_radio0`).
-  - `nasid` isn't set, so hostapd uses each radio's MAC address as its NAS
-    ID. That keeps it unique per AP, which 802.11r needs, without a
-    per-device secret.
+  - `nasid` (802.11r NAS ID) must differ between devices, so it's set per
+    radio in `openwrt_wifi_radios` (e.g. `openwrt_wifi_router_nasid.radio0`
+    from secrets), not on the shared iface. It's rendered just above
+    `mobility_domain`, on roaming ifaces only. A radio without `nasid`
+    leaves it unset, and hostapd then falls back to the radio's MAC address.
+    Each AP profile needs its own `openwrt_wifi_<profile>_nasid` secret.
   - A host with no `openwrt_wifi_radios` stops at a `meta: end_host`, so the
     playbook never pushes a file with no radios (which would wipe its wifi).
     Adding an AP means adding its radios to its `ap_<profile>.yml`.

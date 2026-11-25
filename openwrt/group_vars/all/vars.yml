@@ -68,7 +68,7 @@ openwrt_leds: []
 # radios that carry each SSID by band rather than by radio name, since radio
 # numbering differs between devices. `roaming` turns on 802.11r fast
 # transition, which needs the same mobility_domain on every device. nasid is
-# left unset, so each radio uses its own MAC address as its NAS ID.
+# per device, so it's set on each radio in openwrt_wifi_radios instead.
 openwrt_wifi_ifaces:
   - name: default
     network: lan
