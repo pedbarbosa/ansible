@@ -426,6 +426,23 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   deployed with `copy`. On change, a handler runs it straight away with
   `community.openwrt.command`, which a dry run skips. Keep everything in
   `rc.local` safe to run twice for that reason.
+- `openwrt/tools/dhcp-stragglers` is a standalone Python 3 script (stdlib
+  only), not a playbook. It runs a BusyBox `sh` heredoc on the router over
+  `ssh <host> sh -s` to list MACs in the neighbour table or lease file that
+  have no `config host`/`/etc/ethers` entry. Then, from the local machine,
+  it adds the MAC vendor (offline, nmap's or ieee-data's OUI list), reverse
+  DNS and an nmap scan. Nothing is sent to outside services.
+  - The router-side part has to stay BusyBox-compatible: no `<(...)`, and
+    no awk variable named `exp` (a built-in function).
+  - The lease file's first field is the lease *expiry*, not when it was
+    handed out.
+  - IoT vendors (`IOT_VENDORS`) override the ping-TTL OS guess: some ESP8266
+    firmware uses TTL 128, which the TTL heuristic reads as Windows.
+  - `--uci` writes only UCI to stdout and notes to stderr, so it can be
+    appended straight to `local/router-dhcp-extra.conf`. That file is copied
+    verbatim to the router, and LuCI drops comments when it saves, so
+    comments in it would show up as drift. Randomised MACs are skipped, since
+    a static lease on one can stop matching.
 
 ## Gotchas learned the hard way
 

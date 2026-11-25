@@ -41,6 +41,8 @@ Hardware that differs per-AP (currently just LEDs, in `openwrt/system.yml`) is s
 
 `openwrt/firewall.yml` also needs `local/router-firewall.conf` (copy `local/router-firewall.conf.example` and fill it in) — the router's actual firewall rules are kept out of the repo entirely, separately from `local/secrets.yml`.
 
+`openwrt/tools/dhcp-stragglers` (run from the Ansible machine, not by any playbook) lists devices the router can see that have no static DHCP lease, with a quick look at each: router ping and neighbour state, lease, MAC vendor, reverse DNS, and an nmap scan of common ports (`-v` for one field per line, `-O` for nmap OS detection via sudo). `--uci` prints `config host` blocks for `local/router-dhcp-extra.conf` instead: `openwrt/tools/dhcp-stragglers --uci >> local/router-dhcp-extra.conf`. It needs `ssh router` to work and `nmap` installed (in `ubuntu/default.yml`).
+
 `openwrt/network.yml` pushes `/etc/config/network` but never restarts anything — a bad bridge/VLAN/IP push there can sever SSH/LuCI access to the device outright, so it's applied by hand, one device at a time, with console/physical access on standby (e.g. `uci commit network && /etc/init.d/network reload`, or a reboot).
 
 To run a single OpenWrt config playbook instead of the full `openwrt.yml` chain, pass `inventory.yml` first — it's what builds the router/AP hosts for that run, so `dhcp.yml` (etc.) on its own would match no hosts:

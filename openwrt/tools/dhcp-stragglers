@@ -1,0 +1,305 @@
+#!/usr/bin/env python3
+"""DHCP stragglers: devices the router can see (neighbour table on lan/iot, or
+a current lease) whose MAC has no `config host` entry or /etc/ethers line,
+each with a quick look at what's there.
+
+The router reports the lease, neighbour state and a ping (it sits on every
+VLAN). This machine adds the MAC vendor (offline, from nmap's or ieee-data's
+OUI list), reverse DNS and an nmap scan of the most common ports. Devices on
+a VLAN this machine can't reach show as filtered in nmap, but the router's
+findings still stand.
+
+With --uci it prints a `config host` block per straggler instead, ready for
+local/router-dhcp-extra.conf (stdout is UCI only; notes go to stderr):
+  dhcp-stragglers --uci >> local/router-dhcp-extra.conf
+
+Usage: dhcp-stragglers [-v] [-O] [--no-scan] [-p N] [--uci] [ssh-host]
+"""
+import argparse
+import concurrent.futures as cf
+import ipaddress
+import re
+import shutil
+import socket
+import subprocess
+import sys
+
+# Runs on the router (BusyBox sh). One tab-separated line per straggler:
+# ip, mac, dev, neighbour state, lease expiry (AEST), lease hostname,
+# ping ttl, ping ms. "-" when unknown.
+REMOTE = r"""
+LEASES=$(uci -q get 'dhcp.@dnsmasq[0].leasefile' || echo /tmp/dhcp.leases)
+KNOWN=/tmp/stragglers.known
+
+{
+  echo 00:00:00:00:00:00   # never empty, so awk's NR == FNR test holds
+  uci -q show dhcp | grep '\.mac='
+  cat /etc/ethers 2>/dev/null
+} | grep -oiE '([0-9a-f]{2}:){5}[0-9a-f]{2}' | tr 'A-F' 'a-f' | sort -u > "$KNOWN"
+
+{
+  ip -4 neigh show | awk '/lladdr/ && $3 ~ /^br-lan/ {print tolower($5), $1, "dev=" $3, "state=" $NF}'
+  # Lease file fields: expiry (epoch, 0 = never), MAC, IP, hostname, client ID
+  [ -f "$LEASES" ] && while read -r expiry mac ip name _; do
+    case $expiry in
+      0) when=never ;;
+      *) when=$(TZ=AEST-10 date -d "@$expiry" '+%Y-%m-%d_%H:%M') ;;
+    esac
+    echo "$mac $ip name=$name exp=$when"
+  done < "$LEASES"
+} | awk 'NR == FNR { known[$1] = 1; next }
+  { $1 = tolower($1) }
+  !($1 in known) {
+    ip[$1] = $2
+    if ($3 ~ /^dev=/) { dev[$1] = substr($3, 5); state[$1] = substr($4, 7) }
+    else { name[$1] = substr($3, 6); expires[$1] = substr($4, 5) }
+  }
+  END {
+    for (m in ip)
+      print ip[m], m, (m in dev ? dev[m] : "-"), (m in state ? state[m] : "-"),
+        (m in expires ? expires[m] : "-"), (m in name ? name[m] : "-")
+  }' "$KNOWN" - | while read -r ip mac dev state expires name; do
+  set -- $(ping -c 1 -W 1 "$ip" 2>/dev/null | sed -n 's/.*ttl=\([0-9]*\) time=\([0-9.]*\).*/\1 \2/p')
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$ip" "$mac" "$dev" "$state" "$expires" "$name" "${1:--}" "${2:--}"
+done
+"""
+
+VENDOR_FILES = [
+    "/usr/share/nmap/nmap-mac-prefixes",
+    "/usr/local/share/nmap/nmap-mac-prefixes",
+    "/opt/homebrew/share/nmap/nmap-mac-prefixes",
+    "/usr/share/ieee-data/oui.txt",
+]
+
+
+def load_vendors():
+    """OUI prefix (6 hex digits, upper case) -> vendor, from whichever list exists."""
+    for path in VENDOR_FILES:
+        vendors = {}
+        try:
+            with open(path, encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    if "(hex)" in line:  # ieee-data: "AA-BB-CC   (hex)\t\tVendor"
+                        prefix, _, vendor = line.partition("(hex)")
+                        vendors[prefix.strip().replace("-", "").upper()] = vendor.strip()
+                    elif len(line) > 7 and line[6] == " " and not line.startswith("#"):
+                        vendors[line[:6].upper()] = line[7:].strip()  # nmap: "AABBCC Vendor"
+        except OSError:
+            continue
+        if vendors:
+            return vendors
+    return None
+
+
+def mac_info(mac, vendors):
+    if int(mac[:2], 16) & 2:
+        return "randomised MAC (locally administered, likely a phone/tablet/laptop privacy address)"
+    if vendors is None:
+        return "vendor unknown (install nmap or ieee-data for the OUI list)"
+    return vendors.get(mac.replace(":", "")[:6].upper(), "vendor not in OUI list")
+
+
+# MAC vendors whose devices are microcontrollers or IoT modules. Their TTLs
+# don't follow the desktop OS conventions ttl_guess() relies on (some ESP8266
+# firmware uses 128, which would read as Windows), so the vendor wins.
+IOT_VENDORS = {
+    "espressif": "ESP8266/ESP32 microcontroller (ESPHome, Tasmota, Shelly, many smart plugs)",
+    "tuya": "Tuya IoT module (smart plug/bulb/sensor)",
+    "beken": "Beken IoT module (often Tuya-based)",
+    "allterco": "Shelly relay/sensor",
+    "itead": "Sonoff (ESP-based) relay/switch",
+    "signify": "Philips Hue device",
+    "philips lighting": "Philips Hue device",
+    "lumi united": "Aqara/Xiaomi IoT device",
+}
+
+# Firmware-default hostnames shared by many devices; fine as a lease name, but
+# confusing as a static DNS name.
+GENERIC_NAMES = {"espressif", "wlan0", "iphone", "ipad", "android", "localhost", "esp32", "esp8266"}
+
+
+def iot_hint(vendor):
+    v = (vendor or "").lower()
+    return next((hint for key, hint in IOT_VENDORS.items() if key in v), None)
+
+
+def ttl_guess(ttl):
+    if ttl == "-":
+        return None
+    ttl = int(ttl)
+    if ttl <= 64:
+        return f"Linux/Android/Apple/embedded (TTL {ttl})"
+    if ttl <= 128:
+        return f"Windows (TTL {ttl})"
+    return f"network gear or RTOS, e.g. printer/camera/switch (TTL {ttl})"
+
+
+def rdns(ip):
+    try:
+        return socket.gethostbyaddr(ip)[0]
+    except OSError:
+        return None
+
+
+def nmap_scan(ip, args):
+    if args.no_scan:
+        return {"note": "skipped (--no-scan)"}
+    if not shutil.which("nmap"):
+        return {"note": "nmap not installed (sudo apt install nmap)"}
+    cmd = ["nmap", "-Pn", "-T4", "--top-ports", str(args.ports), "-sV", "--version-light",
+           "--host-timeout", "90s", "-oG", "-", ip]
+    if args.os:
+        cmd = ["sudo", "-n"] + cmd[:1] + ["-O", "--osscan-guess"] + cmd[1:]
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=150).stdout
+    except subprocess.TimeoutExpired:
+        return {"note": "nmap timed out"}
+    ports, os_guess, ignored = [], None, None
+    for line in out.splitlines():
+        if not line.startswith("Host:"):
+            continue
+        for field in line.split("\t"):
+            key, _, val = field.partition(": ")
+            if key == "Ports":
+                for entry in val.split(", "):
+                    # port/state/proto/owner/service/rpc/version/
+                    p = entry.split("/")
+                    if len(p) >= 7 and p[1] == "open":
+                        desc = f"{p[0]}/{p[4] or p[2]}"
+                        if p[6]:
+                            desc += f" ({p[6].replace('|', '/')})"
+                        ports.append(desc)
+            elif key == "OS":
+                os_guess = val
+            elif key == "Ignored State":
+                ignored = val
+    note = None
+    if not ports:
+        if ignored and ignored.startswith("filtered"):
+            note = f"no open ports; all {args.ports} filtered (firewalled, or not reachable from here)"
+        elif ignored and ignored.startswith("closed"):
+            note = f"no open ports; all {args.ports} closed (host is up, nothing listening)"
+        else:
+            note = "no open ports found"
+    answered = bool(ports) or bool(ignored and ignored.startswith("closed"))
+    return {"ports": ports, "os": os_guess, "note": note, "answered": answered}
+
+
+def presence(row, scan):
+    where = f"on {row['dev']}" if row["dev"] != "-" else ""
+    if row["ttl"] != "-":
+        return f"UP: replied to router ping in {row['ms']} ms {where}".rstrip()
+    if scan.get("ports"):
+        return f"UP: no ping reply, but has open ports {where}".rstrip()
+    if scan.get("answered"):
+        return f"UP: no ping reply, but answered port probes {where}".rstrip()
+    if row["state"] in ("REACHABLE", "DELAY", "PROBE"):
+        return f"PROBABLY UP: no ping reply, neighbour {row['state']} {where}".rstrip()
+    if row["state"] == "STALE":
+        return f"SEEN RECENTLY: no ping reply, neighbour STALE {where}".rstrip()
+    return "NOT SEEN: lease only, no ping reply, not in neighbour table"
+
+
+def investigate(row, args, vendors):
+    scan = nmap_scan(row["ip"], args)
+    lease = "none"
+    if row["expires"] != "-":
+        name = row["name"] if row["name"] not in ("-", "*") else "no hostname"
+        lease = f"{name}, expires {row['expires'].replace('_', ' ')}"
+    vendor = mac_info(row["mac"], vendors)
+    hint = iot_hint(vendor)
+    if hint:
+        os_guess = hint + (f"; nmap: {scan['os']}" if scan.get("os") else "")
+    else:
+        os_guess = scan.get("os") or ttl_guess(row["ttl"]) or "unknown"
+        if scan.get("os") and row["ttl"] != "-":
+            os_guess += f"; TTL {row['ttl']}"
+    if scan.get("ports"):
+        ports = ", ".join(scan["ports"])
+    else:
+        ports = scan.get("note") or "none"
+    return [
+        ("presence", presence(row, scan)),
+        ("lease", lease),
+        ("mac", vendor),
+        ("dns", rdns(row["ip"]) or "no reverse DNS"),
+        ("os", os_guess),
+        ("ports", ports),
+    ]
+
+
+def uci_hosts(rows, vendors):
+    """`config host` blocks on stdout, notes on stderr."""
+    taken = {}
+    for row in rows:
+        lease = row["name"] if row["name"] not in ("-", "*") else ""
+        taken[lease.lower()] = taken.get(lease.lower(), 0) + 1
+    for row in rows:
+        mac, ip = row["mac"], row["ip"]
+        vendor = mac_info(mac, vendors)
+        if int(mac[:2], 16) & 2:
+            print(f"skipped {ip} {mac}: randomised MAC, it may change; fix the device's "
+                  "private address for this network first", file=sys.stderr)
+            continue
+        lease = row["name"] if row["name"] not in ("-", "*") else ""
+        name = re.sub(r"[^A-Za-z0-9-]+", "-", lease).strip("-")
+        tail = "-".join(ip.split(".")[-2:])
+        if not name:
+            name = f"unknown-{tail}"
+            print(f"{ip} {mac} ({vendor}): no lease hostname, named it {name}", file=sys.stderr)
+        elif taken[lease.lower()] > 1:
+            name = f"{name}-{tail}"
+            print(f"{ip} {mac} ({vendor}): hostname {lease!r} is shared, named it {name}", file=sys.stderr)
+        elif name.lower() in GENERIC_NAMES or re.fullmatch(r"android-[0-9a-f]+", name.lower()):
+            print(f"{ip} {mac} ({vendor}): {name!r} is a firmware default, consider renaming",
+                  file=sys.stderr)
+        print(f"\nconfig host\n\toption name '{name}'\n\toption mac '{mac.upper()}'\n\toption ip '{ip}'")
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0],
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("host", nargs="?", default="router", help="router's ssh host (default: router)")
+    ap.add_argument("-v", "--verbose", action="store_true", help="one field per line")
+    ap.add_argument("-O", "--os", action="store_true", help="nmap OS detection (runs nmap via sudo)")
+    ap.add_argument("-p", "--ports", type=int, default=100, metavar="N",
+                    help="scan nmap's top N TCP ports (default: 100)")
+    ap.add_argument("--no-scan", action="store_true", help="skip nmap (router data, vendor, DNS only)")
+    ap.add_argument("--uci", action="store_true",
+                    help="print `config host` blocks for local/router-dhcp-extra.conf instead (no scan)")
+    ap.add_argument("-j", "--jobs", type=int, default=8, help="hosts investigated in parallel (default: 8)")
+    args = ap.parse_args()
+
+    res = subprocess.run(["ssh", args.host, "sh", "-s"], input=REMOTE, capture_output=True, text=True)
+    if res.returncode != 0:
+        sys.exit(f"ssh {args.host} failed ({res.returncode}): {res.stderr.strip()}")
+    keys = ["ip", "mac", "dev", "state", "expires", "name", "ttl", "ms"]
+    rows = [dict(zip(keys, line.split("\t"))) for line in res.stdout.splitlines() if line.count("\t") == 7]
+    if not rows:
+        print("No stragglers: every device the router sees has a static lease.")
+        return
+    rows.sort(key=lambda r: ipaddress.ip_address(r["ip"]))
+
+    vendors = load_vendors()
+    if args.uci:
+        uci_hosts(rows, vendors)
+        return
+
+    if args.os and not args.no_scan and subprocess.run(["sudo", "-v"]).returncode != 0:
+        sys.exit("sudo failed; nmap OS detection needs root")
+
+    with cf.ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        results = list(pool.map(lambda r: investigate(r, args, vendors), rows))
+
+    for row, fields in zip(rows, results):
+        if args.verbose:
+            print(f"{row['ip']}  {row['mac']}")
+            for label, value in fields:
+                print(f"    {label + ':':<10}{value}")
+            print()
+        else:
+            print(f"{row['ip']:<15} {row['mac']} | " + " | ".join(f"{k}: {v}" for k, v in fields))
+
+
+if __name__ == "__main__":
+    main()
