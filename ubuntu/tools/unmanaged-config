@@ -47,6 +47,7 @@ USER = getpass.getuser()
 
 # Deployed by run.sh rather than a playbook
 RUN_SH_FILES = {str(HOME / ".ssh/config"), "/etc/ansible/hosts", f"/etc/sudoers.d/{USER}"}
+RUN_SH_PACKAGES = {"ansible"}
 
 # Directories where hand-made config usually ends up
 CONFIG_DIRS = [
@@ -256,7 +257,7 @@ def module_args(task, *names):
 def managed_by_playbooks(base_ctx):
     """Paths the ubuntu playbooks deploy, apt packages they install, cron job names,
     and the users and groups they create or change."""
-    paths, packages, cron_names, accounts = set(RUN_SH_FILES), set(), set(), set()
+    paths, packages, cron_names, accounts = set(RUN_SH_FILES), set(RUN_SH_PACKAGES), set(), set()
     playbooks = [REPO / "ubuntu" / Path(e["import_playbook"]).name
                  for e in load_yaml(REPO / "ubuntu.yml") if "import_playbook" in e]
     for playbook in playbooks:
