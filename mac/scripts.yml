@@ -1,7 +1,8 @@
 ---
 # Personal scripts in ~/bin (on the PATH via zshrc.j2). No play-level become,
 # so ~ is the account Ansible runs as.
-- hosts: localhost
+- name: mac/scripts
+  hosts: localhost
   connection: local
   vars:
     git_repos_check_label: local.git-repos-check

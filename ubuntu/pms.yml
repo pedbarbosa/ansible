@@ -1,5 +1,6 @@
 ---
-- hosts: all
+- name: ubuntu/pms
+  hosts: all
   become: yes
   become_user: root
   vars_files:

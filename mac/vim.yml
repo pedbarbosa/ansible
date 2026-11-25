@@ -1,5 +1,6 @@
 ---
-- hosts: localhost
+- name: mac/vim
+  hosts: localhost
   connection: local
   tasks:
     - name: Check if vim is installed

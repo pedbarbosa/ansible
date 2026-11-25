@@ -16,7 +16,8 @@
 # that network.yml has staged but deliberately left unapplied. Run
 # `wifi reload` by hand once the device's /etc/config/network is what you
 # want running.
-- hosts: openwrt
+- name: openwrt/wireless
+  hosts: openwrt
   gather_facts: false
   tasks:
     - name: openwrt - Skip hosts without radio definitions

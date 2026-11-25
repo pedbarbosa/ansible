@@ -1,7 +1,8 @@
 ---
 # Dotfiles for the login user that no other playbook covers. No play-level
 # become, so ~ is the account Ansible connects as.
-- hosts: all
+- name: ubuntu/dotfiles
+  hosts: all
   tasks:
     # Shared with mac/default.yml
     - name: dotfiles - configure .gitconfig

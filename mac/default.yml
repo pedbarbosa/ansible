@@ -1,5 +1,6 @@
 ---
-- hosts: localhost
+- name: mac/default
+  hosts: localhost
   connection: local
   vars_files:
     - ../local/secrets.yml

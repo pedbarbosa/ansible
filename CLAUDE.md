@@ -50,6 +50,11 @@ won't be in it (they can add `ANSIBLE_DISPLAY_OK_HOSTS=true` and
 file it finds, so this one replaces any `~/.ansible.cfg` or
 `/etc/ansible/ansible.cfg` when run from the repo root.
 
+Every play has a `name:` of `<dir>/<file>` (e.g. `ubuntu/collectd`), with a
+short suffix in brackets when a file has more than one play. With the quiet
+output, the `PLAY [...]` banners are what shows progress through a run of
+many playbooks, and an unnamed play just prints its host pattern (`all`).
+
 `run.sh` always runs `ansible-playbook -CD <playbook>.yml` (check + diff)
 first and prints a reminder to re-run with `-v` to apply. Keep this
 "preview by default" behavior in mind when adding tasks:

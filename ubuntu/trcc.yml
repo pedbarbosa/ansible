@@ -3,7 +3,8 @@
 # Digital), https://github.com/Lexonight1/thermalright-trcc-linux. Its daemon
 # runs as a systemd user unit, kept running without a login by lingering. No
 # play-level become, so ~ is the account Ansible connects as.
-- hosts: all
+- name: ubuntu/trcc
+  hosts: all
   tasks:
     - name: trcc - get the latest trcc-linux release
       uri:

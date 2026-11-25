@@ -1,7 +1,8 @@
 ---
 # Personal scripts in ~/bin (on the PATH via zshrc.j2). No play-level become,
 # so ~ is the account Ansible connects as.
-- hosts: all
+- name: ubuntu/scripts
+  hosts: all
   vars_files:
     - ../local/secrets.yml
   tasks:

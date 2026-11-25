@@ -1,5 +1,6 @@
 ---
-- hosts: openwrt
+- name: openwrt/default
+  hosts: openwrt
   gather_facts: false
   pre_tasks:
     - name: openwrt - Update apk package lists

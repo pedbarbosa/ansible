@@ -1,5 +1,6 @@
 ---
-- hosts: openwrt
+- name: openwrt/dropbear
+  hosts: openwrt
   gather_facts: false
   tasks:
     - name: openwrt - Configure dropbear

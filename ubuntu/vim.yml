@@ -1,5 +1,6 @@
 ---
-- hosts: all
+- name: ubuntu/vim (packages)
+  hosts: all
   become: yes
   become_user: root
   tasks:
@@ -9,7 +10,8 @@
         state: present
 
 # Runs once per account in dotfile_users (the login user and root)
-- hosts: all
+- name: ubuntu/vim (each dotfile user)
+  hosts: all
   tasks:
     # Created even in check mode: get_url fails if its destination folder is
     # missing, so root's first dry run would otherwise always fail

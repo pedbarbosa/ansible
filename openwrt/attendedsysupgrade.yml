@@ -1,5 +1,6 @@
 ---
-- hosts: openwrt
+- name: openwrt/attendedsysupgrade
+  hosts: openwrt
   gather_facts: false
   tasks:
     - name: openwrt - Configure attendedsysupgrade

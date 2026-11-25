@@ -1,5 +1,6 @@
 ---
-- hosts: localhost
+- name: mac/ruby
+  hosts: localhost
   connection: local
   tasks:
   - name: Check if ruby is installed
