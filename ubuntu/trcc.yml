@@ -1,5 +1,5 @@
 ---
-# trcc-linux drives the LCD on the CPU cooler (Thermalright Assassin X 120 R
+# trcc-linux drives the display on the CPU cooler (Thermalright Assassin X 120 R
 # Digital), https://github.com/Lexonight1/thermalright-trcc-linux. Its daemon
 # runs as a systemd user unit, kept running without a login by lingering. No
 # play-level become, so ~ is the account Ansible connects as.
@@ -53,9 +53,10 @@
         key: trcc
         fail_key: false
 
-    # udev's uaccess tag only reaches users at the machine's own screen, so a
-    # daemon running without a login needs the group (from the next login, or
-    # a reboot for the lingering user manager)
+    # The package's udev rules give the device to the trcc group (mode 0660),
+    # and udev's uaccess tag only reaches users at the machine's own screen, so
+    # the daemon needs the group. It runs under the lingering user manager,
+    # which only picks up a new group when it restarts.
     - name: trcc - add the user to the trcc group
       user:
         name: "{{ ansible_facts['user_id'] }}"
@@ -63,6 +64,7 @@
         append: true
       become: yes
       when: not ansible_check_mode or ansible_facts['getent_group']['trcc'] is not none
+      notify: trcc - Restart the user manager
 
     - name: trcc - keep the user's services running without a login
       command: "loginctl enable-linger {{ ansible_facts['user_id'] }}"
@@ -95,6 +97,15 @@
       when: not ansible_check_mode or trcc_linux_installed_version.rc == 0
 
   handlers:
+    # Restarts the user's services (trccd starts again as it's enabled), not
+    # their logins: SSH sessions, Ansible's included, run outside it. Handlers
+    # run in the order listed, so this goes before trccd's own restart.
+    - name: trcc - Restart the user manager
+      ansible.builtin.systemd_service:
+        name: "user@{{ ansible_facts['user_uid'] }}.service"
+        state: restarted
+      become: yes
+
     - name: trcc - Restart
       ansible.builtin.systemd_service:
         name: trccd.service

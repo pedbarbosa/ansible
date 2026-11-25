@@ -510,7 +510,11 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   (the plain `_all.deb`; the `.legacy` one is for Ubuntu 24.04 and older)
   and runs `trccd` as a systemd user unit. That needs lingering
   (`loginctl enable-linger`) and the user in the package's `trcc` group,
-  since udev's `uaccess` only covers a local seat.
+  since udev's `uaccess` only covers a local seat. The lingering user
+  manager keeps the groups it started with, so adding the group notifies a
+  handler that restarts `user@<uid>.service`; without it `trccd` finds no
+  device. Releases before the group existed didn't create it, so a dry run
+  checks for it with `getent` before adding the user.
 - `openwrt/tools/dhcp-stragglers` is a standalone Python 3 script (stdlib
   only), not a playbook. `ubuntu/scripts.yml` copies it into `~/bin` on
   Ubuntu and installs `nmap` for it, so edit it here, not the copy. It runs a BusyBox `sh` heredoc on the router over
