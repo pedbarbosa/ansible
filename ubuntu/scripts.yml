@@ -39,3 +39,14 @@
         - docker-update-all
         - openwrt_backup.sh
         - snap-clean
+
+    - name: scripts - read secrets from file
+      include_vars:
+        file: ../local/secrets.yml
+
+    # openwrt_backup.sh sources this file and refuses one others can write to
+    - name: scripts - configure openwrt_backup.sh
+      template:
+        src: files/openwrt_backup.conf.j2
+        dest: ~/.openwrt_backup
+        mode: 0600

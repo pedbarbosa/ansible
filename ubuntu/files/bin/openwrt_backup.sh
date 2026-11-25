@@ -4,8 +4,9 @@
 # backups (unchanged configs) with jdupes. Tells Slack only when something fails.
 #
 # Settings are read from ~/.openwrt_backup (or the file OPENWRT_BACKUP_CONFIG
-# names). The file is sourced as bash, must not be writable by group or
-# others (chmod 600), and needs:
+# names), which the ansible ubuntu playbook writes from its secrets. The file
+# is sourced as bash, must not be writable by group or others (chmod 600), and
+# needs:
 #
 #   # Existing directory the backups are written to. It's never created, so a
 #   # missing (e.g. unmounted) storage fails the run instead of filling the root disk.
