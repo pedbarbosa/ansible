@@ -121,6 +121,13 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   (installed to `/usr/local/bin` by `ubuntu/default.yml` and
   `mac/default.yml`). Cron's `PATH` may not include `/usr/local/bin`, so the
   scripts fall back to that full path.
+- `ubuntu/scripts.yml` also owns the login user's crontab entries for
+  these scripts (plus server-stack's `update_certs`), via
+  `ansible.builtin.cron`. It only manages entries under its own
+  `#Ansible: <name>` markers, so don't expect it to remove hand-added lines;
+  change a schedule in the play, not with `crontab -e`. Since every job
+  reports to Slack itself, no cron line pipes into `slack-notify`. Macs get
+  no cron jobs from Ansible.
 - `git-repos-check` also runs on macOS, where cron may use `/bin/bash` 3.2:
   no associative arrays, `mapfile` or `${var,,}`, and expand possibly-empty
   arrays under `set -u` as `${a[@]+"${a[@]}"}`. On a Mac, pyenv and rbenv
