@@ -306,9 +306,10 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
 - `openwrt/adblock.yml` (`/etc/config/adblock`) targets `hosts: router`
   directly (not `openwrt` gated by a `group_names` check) since it's the
   only file so far that doesn't apply to the APs at all. `adb_mailreceiver`/
-  `adb_mailsender` are `admin@{{ domain }}`/`router@{{ domain }}`, reusing
-  the same `domain` secret as `ubuntu/collectd.yml` rather than adding a
-  new one, per explicit request.
+  `adb_mailsender` are `admin@{{ domain }}`/`router@{{ domain }}`, using the
+  shared `domain` secret (also used by `banip.yml` and `dhcp.yml`; it was
+  first added for the since-removed collectd Apache plugin) rather than
+  adding a new one, per explicit request.
 - `openwrt/banip.yml` (`/etc/config/banip`) is router-only (same `hosts:
   router` / `domain`-secret reasoning as `openwrt/adblock.yml` above).
 - `openwrt/blocklists_mqtt.yml` (router only) installs `blocklists-mqtt`, a
