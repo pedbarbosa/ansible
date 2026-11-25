@@ -24,3 +24,7 @@ zsh_plugins:
   - pip
   - rsync
   - sudo
+
+# ubuntu/docker.yml, on hosts with an NVIDIA GPU. The version server-stack's
+# README installs for Jellyfin's transcoding.
+nvidia_driver_package: nvidia-driver-580
