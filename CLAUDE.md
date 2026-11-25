@@ -113,8 +113,8 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   may not include `/usr/local/bin`, so the scripts fall back to that full
   path.
 - Settings that are private (paths, hostnames) stay out of the scripts:
-  `openwrt_backup.sh` sources `~/.openwrt_backup`, which the play renders
-  (mode 0600) from `files/openwrt_backup.conf.j2` using `storage_mount` and
+  `openwrt-backup` sources `~/.openwrt-backup`, which the play renders
+  (mode 0600) from `files/openwrt-backup.conf.j2` using `storage_mount` and
   the AP names in `openwrt_ap_hosts`. The router's ssh name is the literal
   `router`, same as `openwrt/inventory.yml`'s `openwrt_hostname`. The
   backup directory itself isn't created by Ansible: the script deliberately

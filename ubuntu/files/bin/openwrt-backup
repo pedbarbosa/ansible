@@ -3,7 +3,7 @@
 # Back up /etc and /root from OpenWrt devices over ssh, then remove duplicate
 # backups (unchanged configs) with jdupes. Tells Slack only when something fails.
 #
-# Settings are read from ~/.openwrt_backup (or the file OPENWRT_BACKUP_CONFIG
+# Settings are read from ~/.openwrt-backup (or the file OPENWRT_BACKUP_CONFIG
 # names), which the ansible ubuntu playbook writes from its secrets. The file
 # is sourced as bash, must not be writable by group or others (chmod 600), and
 # needs:
@@ -21,7 +21,7 @@ set -uo pipefail
 # Backups hold Wi-Fi keys, /etc/shadow and ssh keys: keep them private
 umask 077
 
-CONFIG_FILE="${OPENWRT_BACKUP_CONFIG:-$HOME/.openwrt_backup}"
+CONFIG_FILE="${OPENWRT_BACKUP_CONFIG:-$HOME/.openwrt-backup}"
 
 # Installed by the ansible ubuntu playbook; cron's PATH may not include /usr/local/bin
 SLACK_NOTIFY=$(command -v slack-notify || echo /usr/local/bin/slack-notify)
@@ -39,7 +39,7 @@ EOF
 # Report a failure on stderr and to Slack
 notify_failure() {
     echo "$1" >&2
-    if ! printf '🚨 openwrt_backup.sh: %s\n' "$1" | "$SLACK_NOTIFY"; then
+    if ! printf '🚨 openwrt-backup: %s\n' "$1" | "$SLACK_NOTIFY"; then
         echo "WARNING: Failed to send the Slack notification" >&2
     fi
 }

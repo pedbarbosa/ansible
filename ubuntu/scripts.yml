@@ -3,7 +3,7 @@
 # so ~ is the account Ansible connects as.
 - hosts: all
   tasks:
-    - name: scripts - install jdupes (openwrt_backup.sh removes duplicate backups with it)
+    - name: scripts - install jdupes (openwrt-backup removes duplicate backups with it)
       apt:
         name: jdupes
         state: present
@@ -37,16 +37,16 @@
         mode: 0755
       loop:
         - docker-update-all
-        - openwrt_backup.sh
+        - openwrt-backup
         - snap-clean
 
     - name: scripts - read secrets from file
       include_vars:
         file: ../local/secrets.yml
 
-    # openwrt_backup.sh sources this file and refuses one others can write to
-    - name: scripts - configure openwrt_backup.sh
+    # openwrt-backup sources this file and refuses one others can write to
+    - name: scripts - configure openwrt-backup
       template:
-        src: files/openwrt_backup.conf.j2
-        dest: ~/.openwrt_backup
+        src: files/openwrt-backup.conf.j2
+        dest: ~/.openwrt-backup
         mode: 0600
