@@ -377,7 +377,17 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   - Each iface lists the `bands` it's on, and the template puts it on every
     radio with that band. It matches by band, not by radio name, because
     `radio0` isn't the 2.4 GHz radio on every device. Section names are
-    `<iface>_<radio>` (e.g. `default_radio1`, `iot_radio0`).
+    `<iface>_<radio>` (e.g. `default_radio1`), unless the radio's
+    `iface_sections` maps the iface to the name LuCI already gave it on that
+    device (the router's IoT SSID stays `wifinet4`). Only the label changes,
+    since nothing else refers to these sections, but keeping it gives a
+    clean diff against the device.
+  - The template writes sections in LuCI's order, also for a clean diff:
+    SSIDs in `openwrt_wifi_ifaces` order, each radio's `wifi-device` just
+    before its first SSID, and radios without SSIDs at the end. On the
+    router that puts `wifinet4` last, where LuCI appended it. Within a
+    radio, SSIDs keep the same relative order either way, so the
+    `phyN-apM` interface names don't change.
   - `nasid` (802.11r NAS ID) must differ between devices, so it's set per
     radio in `openwrt_wifi_radios` (e.g. `openwrt_wifi_router_nasid.radio0`
     from secrets), not on the shared iface. It's rendered just above
