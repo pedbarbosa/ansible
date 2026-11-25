@@ -1,8 +1,7 @@
 ---
 # /etc/config/wireless - the radios differ per hardware model (path, band,
 # htmode, txpower), so each host group defines its own openwrt_wifi_radios
-# (group_vars/router.yml, and group_vars/ap_<profile>.yml once the APs are
-# added). The SSIDs are the same on every device so clients can roam
+# (group_vars/router.yml and group_vars/ap_<profile>.yml). The SSIDs are the same on every device so clients can roam
 # between them, so they're defined once, in openwrt_wifi_ifaces
 # (group_vars/all/vars.yml), with names and keys from local/secrets.yml.
 #

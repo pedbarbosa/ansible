@@ -370,7 +370,7 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
 - `openwrt/wireless.yml` (`/etc/config/wireless`) splits the file by what
   varies. The `wifi-device` sections depend on the hardware (path, band,
   htmode, txpower), so each group defines `openwrt_wifi_radios` in its own
-  group_vars (`router.yml`, later `ap_<profile>.yml`). The `wifi-iface`
+  group_vars (`router.yml`, `ap_<profile>.yml`). The `wifi-iface`
   sections must be the same everywhere for roaming, so they're defined once
   in `openwrt_wifi_ifaces` (`group_vars/all/vars.yml`), with SSIDs, keys,
   the 802.11r mobility domain and the country code from `local/secrets.yml`.
@@ -392,12 +392,19 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
     itself (`default_radio*`) have `network` right after `device`, while
     ones added in LuCI (`wifinet4`) have it last, after `key`. The
     iface's `network_last: true` picks the second order.
+  - The router's file was matched exactly, but the APs' weren't. LuCI left
+    each AP with its own option and section order (e.g. `band` before
+    `channel`, `network` after `mode`), and matching that would take a
+    per-device flag for almost every option. The APs were reordered once on
+    their first run instead. uci keeps the existing order when LuCI edits a
+    section, so it stays stable afterwards. Don't add more order flags for
+    the APs.
   - `nasid` (802.11r NAS ID) must differ between devices, so it's set per
     radio in `openwrt_wifi_radios` (e.g. `openwrt_wifi_router_nasid.radio0`
     from secrets), not on the shared iface. It's rendered just above
     `mobility_domain`, on roaming ifaces only. A radio without `nasid`
     leaves it unset, and hostapd then falls back to the radio's MAC address.
-    Each AP profile needs its own `openwrt_wifi_<profile>_nasid` secret.
+    Each AP profile has its own `openwrt_wifi_<profile>_nasid` secret.
   - A host with no `openwrt_wifi_radios` stops at a `meta: end_host`, so the
     playbook never pushes a file with no radios (which would wipe its wifi).
     Adding an AP means adding its radios to its `ap_<profile>.yml`.

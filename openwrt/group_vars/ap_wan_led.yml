@@ -5,3 +5,26 @@ openwrt_leds:
     trigger: netdev
     mode: "link tx rx"
     dev: wan
+
+# openwrt/wireless.yml (wireless.conf) - this AP's radios. SSIDs come from
+# openwrt_wifi_ifaces (group_vars/all/vars.yml), picked by band. `nasid` is
+# per device, from a per-radio secret. `iface_sections` keeps the section
+# names LuCI gave this AP's SSIDs.
+openwrt_wifi_radios:
+  - name: radio0
+    path: platform/soc/18000000.wifi
+    band: 2g
+    htmode: HE20
+    txpower: 25
+    nasid: "{{ openwrt_wifi_ap_wan_led_nasid.radio0 }}"
+    iface_sections:
+      default: wifinet0
+      iot: wifinet2
+  - name: radio1
+    path: platform/soc/18000000.wifi+1
+    band: 5g
+    htmode: HE80
+    txpower: 18
+    nasid: "{{ openwrt_wifi_ap_wan_led_nasid.radio1 }}"
+    iface_sections:
+      default: wifinet1
