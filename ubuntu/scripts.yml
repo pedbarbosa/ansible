@@ -32,13 +32,15 @@
 
     - name: scripts - install scripts
       copy:
-        src: "files/bin/{{ item }}"
-        dest: "~/bin/{{ item }}"
+        src: "{{ item }}"
+        dest: "~/bin/{{ item | basename }}"
         mode: 0755
       loop:
-        - docker-update-all
-        - openwrt-backup
-        - snap-clean
+        - files/bin/docker-update-all
+        - files/bin/openwrt-backup
+        - files/bin/snap-clean
+        # Shared with mac/scripts.yml
+        - "{{ playbook_dir }}/../files/bin/git-repos-check"
 
     - name: scripts - read secrets from file
       include_vars:

@@ -1,0 +1,35 @@
+---
+# Personal scripts in ~/bin (on the PATH via zshrc.j2). No play-level become,
+# so ~ is the account Ansible runs as.
+- hosts: localhost
+  connection: local
+  tasks:
+    # ~/bin may still be a symlink to a clone of the old scripts repo. Remove
+    # the link itself (never its target) so the scripts below aren't written
+    # into that clone.
+    - name: scripts - check whether ~/bin is a symlink
+      stat:
+        path: ~/bin
+        follow: no
+      register: user_bin
+
+    - name: scripts - remove the old ~/bin symlink
+      file:
+        path: ~/bin
+        state: absent
+      when: user_bin.stat.islnk | default(false)
+
+    - name: scripts - ensure ~/bin exists
+      file:
+        path: ~/bin
+        state: directory
+        mode: 0755
+
+    - name: scripts - install scripts
+      copy:
+        src: "{{ item }}"
+        dest: "~/bin/{{ item | basename }}"
+        mode: 0755
+      loop:
+        # Shared with ubuntu/scripts.yml
+        - "{{ playbook_dir }}/../files/bin/git-repos-check"

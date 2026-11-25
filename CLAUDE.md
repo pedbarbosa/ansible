@@ -99,19 +99,26 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   and templates, then hand off the exact command for the user to run on a
   host that actually has access.
 
-## Personal scripts in `~/bin` (`ubuntu/scripts.yml`)
+## Personal scripts in `~/bin` (`ubuntu/scripts.yml`, `mac/scripts.yml`)
 
-- The scripts live in `ubuntu/files/bin/` and are copied to the login
-  user's `~/bin`, which `zshrc.j2` puts on the `PATH`. They came from the
-  old `pedbarbosa/scripts` repo, which is being retired. Add new ones to the
-  `loop` in `ubuntu/scripts.yml`.
-- `~/bin` used to be a symlink to a clone of that repo. The play removes the
+- Ubuntu-only scripts live in `ubuntu/files/bin/`; `git-repos-check`, used
+  on both, lives in the top-level `files/bin/` (see the shared files section
+  below). Each play copies its list to the login user's `~/bin`, which
+  `zshrc.j2` puts on the `PATH`. They came from the old `pedbarbosa/scripts`
+  repo, which is being retired. Add new ones to the `loop` of the play(s)
+  that should get them.
+- `~/bin` used to be a symlink to a clone of that repo. Both plays remove the
   symlink (never its target) before creating the real directory. Without
   that, `copy` would follow the link and write into the old clone.
-- They run unattended from cron and report through `slack-notify`
-  (installed to `/usr/local/bin` by `ubuntu/default.yml`). Cron's `PATH`
-  may not include `/usr/local/bin`, so the scripts fall back to that full
-  path.
+- They run unattended from cron and report failures through `slack-notify`
+  (installed to `/usr/local/bin` by `ubuntu/default.yml` and
+  `mac/default.yml`). Cron's `PATH` may not include `/usr/local/bin`, so the
+  scripts fall back to that full path.
+- `git-repos-check` also runs on macOS, where cron may use `/bin/bash` 3.2:
+  no associative arrays, `mapfile` or `${var,,}`, and expand possibly-empty
+  arrays under `set -u` as `${a[@]+"${a[@]}"}`. On a Mac, pyenv and rbenv
+  come from Homebrew, so their directories aren't git checkouts and the
+  script skips them.
 - Settings that are private (paths, hostnames) stay out of the scripts:
   `openwrt-backup` sources `~/.openwrt-backup`, which the play renders
   (mode 0600) from `files/openwrt-backup.conf.j2` using `storage_mount` and
