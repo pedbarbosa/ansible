@@ -388,6 +388,10 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
     router that puts `wifinet4` last, where LuCI appended it. Within a
     radio, SSIDs keep the same relative order either way, so the
     `phyN-apM` interface names don't change.
+  - Option order within a section follows LuCI too. SSIDs OpenWrt set up
+    itself (`default_radio*`) have `network` right after `device`, while
+    ones added in LuCI (`wifinet4`) have it last, after `key`. The
+    iface's `network_last: true` picks the second order.
   - `nasid` (802.11r NAS ID) must differ between devices, so it's set per
     radio in `openwrt_wifi_radios` (e.g. `openwrt_wifi_router_nasid.radio0`
     from secrets), not on the shared iface. It's rendered just above

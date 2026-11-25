@@ -69,6 +69,9 @@ openwrt_leds: []
 # numbering differs between devices. `roaming` turns on 802.11r fast
 # transition, which needs the same mobility_domain on every device. nasid is
 # per device, so it's set on each radio in openwrt_wifi_radios instead.
+# `network_last` writes `network` after `key`, where LuCI puts it for SSIDs
+# added in its UI. SSIDs OpenWrt set up itself have it after `device`. It
+# changes nothing on the device, but keeps the file in LuCI's order.
 openwrt_wifi_ifaces:
   - name: default
     network: lan
@@ -84,3 +87,4 @@ openwrt_wifi_ifaces:
     ssid: "{{ openwrt_wifi_iot_ssid }}"
     key: "{{ openwrt_wifi_iot_key }}"
     encryption: psk-mixed
+    network_last: true
