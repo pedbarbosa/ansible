@@ -11,6 +11,16 @@
 # remote access to the device entirely.
 - import_playbook: openwrt/network.yml
 
+# /etc/config/wireless - radios per hardware model from group_vars, SSIDs
+# shared by every device for roaming. Hosts without radio definitions are
+# skipped. No restart handler: `wifi reload` is a full netifd reload, which
+# would also apply a staged /etc/config/network (see openwrt/wireless.yml).
+- import_playbook: openwrt/wireless.yml
+
+# /etc/rc.local - router only: the ethtool workaround for the tx/rx queue
+# hangs, run at boot and straight away on change
+- import_playbook: openwrt/rc_local.yml
+
 # collectd monitoring, reporting back to the same collectd server as
 # ubuntu/collectd.yml; the router also pings WAN targets and publishes
 # everything to MQTT for Home Assistant

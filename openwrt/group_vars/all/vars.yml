@@ -62,3 +62,37 @@ openwrt_log_port: 514
 openwrt_log_size: "{{ openwrt_log_size_router if 'router' in group_names else 64 }}"
 openwrt_cronloglevel: "{{ openwrt_cronloglevel_router if 'router' in group_names else 5 }}"
 openwrt_leds: []
+
+# openwrt/wireless.yml (wireless.conf) - the SSIDs, the same on every device
+# that has radios (openwrt_wifi_radios in its group_vars). `bands` picks the
+# radios that carry each SSID by band rather than by radio name, since radio
+# numbering differs between devices. `roaming` turns on 802.11r fast
+# transition, which needs the same mobility_domain on every device.
+# `network_last` writes `network` after `key`, where LuCI puts it for SSIDs
+# added in its UI. SSIDs OpenWrt set up itself have it after `device`. It
+# changes nothing on the device, but keeps the file in LuCI's order.
+openwrt_wifi_ifaces:
+  - name: default
+    network: lan
+    bands: [2g, 5g]
+    ssid: "{{ openwrt_wifi_lan_ssid }}"
+    key: "{{ openwrt_wifi_lan_key }}"
+    encryption: psk2
+    roaming: true
+    mobility_domain: "{{ openwrt_wifi_lan_mobility_domain }}"
+  - name: iot
+    network: iot
+    bands: [2g]
+    ssid: "{{ openwrt_wifi_iot_ssid }}"
+    key: "{{ openwrt_wifi_iot_key }}"
+    encryption: psk-mixed
+    network_last: true
+
+# openwrt/wireless.yml (wireless.conf) - the 802.11r NAS ID on roaming SSIDs,
+# by the radio's band. It's the same on every device: with
+# ft_psk_generate_local each AP derives the roaming keys from the PSK itself,
+# so NAS IDs don't need to differ between APs. The values reuse the SSID
+# secrets because that's what the devices were already set to.
+openwrt_wifi_nasid:
+  2g: "{{ openwrt_wifi_lan_ssid }}"
+  5g: "{{ openwrt_wifi_iot_ssid }}"
