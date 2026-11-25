@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# Docker compose file location
+DC_FILE="$HOME/git/server-stack/docker-compose.yaml"
+
+# Pull the latest images, perform up dry-run and list containers to start/restart
+PULL_OUTPUT=$(docker compose -f "$DC_FILE" --profile all pull 2>&1)
+DRY_RUN_OUTPUT=$(docker compose -f "$DC_FILE" --profile all up -d --dry-run 2>&1)
+# Each container appears on several status lines (e.g. Recreated and Started), so keep the first of each
+RESTART_SERVICES=$(echo "$DRY_RUN_OUTPUT" | grep -E "(Recreated|Started|Restarted)" | awk '{print $2}' | grep -v -E "^[a-f0-9]{12}_" | awk '!seen[$0]++')
+
+# If required, Restart containers and notify Slack
+if [ -n "$RESTART_SERVICES" ]; then
+    echo -e "(Re)starting containers:\n$RESTART_SERVICES" | slack-notify
+    UP_OUTPUT=$(docker compose -f "$DC_FILE" --profile all up -d 2>&1)
+fi

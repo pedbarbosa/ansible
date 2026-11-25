@@ -1,0 +1,41 @@
+---
+# Personal scripts in ~/bin (on the PATH via zshrc.j2). No play-level become,
+# so ~ is the account Ansible connects as.
+- hosts: all
+  tasks:
+    - name: scripts - install jdupes (openwrt_backup.sh removes duplicate backups with it)
+      apt:
+        name: jdupes
+        state: present
+      become: yes
+
+    # ~/bin used to be a symlink to a clone of the old scripts repo. Remove the
+    # link itself (never its target) so the scripts below aren't written into
+    # that clone.
+    - name: scripts - check whether ~/bin is a symlink
+      stat:
+        path: ~/bin
+        follow: no
+      register: user_bin
+
+    - name: scripts - remove the old ~/bin symlink
+      file:
+        path: ~/bin
+        state: absent
+      when: user_bin.stat.islnk | default(false)
+
+    - name: scripts - ensure ~/bin exists
+      file:
+        path: ~/bin
+        state: directory
+        mode: 0755
+
+    - name: scripts - install scripts
+      copy:
+        src: "files/bin/{{ item }}"
+        dest: "~/bin/{{ item }}"
+        mode: 0755
+      loop:
+        - docker-update-all
+        - openwrt_backup.sh
+        - snap-clean

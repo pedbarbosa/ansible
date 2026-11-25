@@ -99,6 +99,23 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   and templates, then hand off the exact command for the user to run on a
   host that actually has access.
 
+## Personal scripts in `~/bin` (`ubuntu/scripts.yml`)
+
+- The scripts live in `ubuntu/files/bin/` and are copied to the login
+  user's `~/bin`, which `zshrc.j2` puts on the `PATH`. They came from the
+  old `pedbarbosa/scripts` repo, which is being retired. Add new ones to the
+  `loop` in `ubuntu/scripts.yml`.
+- `~/bin` used to be a symlink to a clone of that repo. The play removes the
+  symlink (never its target) before creating the real directory. Without
+  that, `copy` would follow the link and write into the old clone.
+- They run unattended from cron and report through `slack-notify`
+  (installed to `/usr/local/bin` by `ubuntu/default.yml`). Cron's `PATH`
+  may not include `/usr/local/bin`, so the scripts fall back to that full
+  path.
+- Settings that are private (paths, hostnames) stay out of the scripts:
+  `openwrt_backup.sh` sources `~/.openwrt_backup`, which isn't managed by
+  Ansible. Its header documents the format.
+
 ## Shared files across mac/ubuntu
 
 - When a file is identical (or near-identical) between `mac/` and `ubuntu/`

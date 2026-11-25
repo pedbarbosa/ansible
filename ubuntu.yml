@@ -12,6 +12,7 @@
 - import_playbook: ubuntu/pms.yml
 - import_playbook: ubuntu/ruby.yml
 - import_playbook: ubuntu/samba.yml
+- import_playbook: ubuntu/scripts.yml
 - import_playbook: ubuntu/security.yml
 - import_playbook: ubuntu/syslog-ng.yml
 - import_playbook: ubuntu/vim.yml
