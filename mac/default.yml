@@ -1,6 +1,8 @@
 ---
 - hosts: localhost
   connection: local
+  vars_files:
+    - ../local/secrets.yml
   tasks:
     - name: Check if base packages are installed
       package:
@@ -38,9 +40,6 @@
         name: requests
         executable: pip3
         extra_args: --break-system-packages
-    - name: slack-notify - Read secrets from file
-      include_vars:
-        file: ../local/secrets.yml
     - name: slack-notify - Ensure config directory exists
       become: yes
       file:

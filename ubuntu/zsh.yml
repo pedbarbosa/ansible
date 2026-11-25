@@ -2,6 +2,8 @@
 - hosts: all
   become: yes
   become_user: root
+  vars_files:
+    - ../local/secrets.yml
   tasks:
     - name: zsh - check if installed
       apt:
@@ -49,10 +51,6 @@
         group: root
         mode: 0755
       when: starship_installed_version != starship_version
-
-    - name: zsh - read secrets from file
-      include_vars:
-        file: ../local/secrets.yml
 
     - name: zsh - set default shell
       user:

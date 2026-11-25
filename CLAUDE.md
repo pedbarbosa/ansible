@@ -16,20 +16,25 @@ server/workstation setup and a macOS workstation setup, one repo, run via
   Each entry is commented with the playbook/file(s) that consume it. When a
   change introduces a new secret-derived variable, update this file too.
 - For `ubuntu`/`mac`, vars sourced from secrets are only available in plays
-  that explicitly run an `include_vars: ../local/secrets.yml` task —
+  that load them with `vars_files: [../local/secrets.yml]` at play level —
   group_vars files can reference them (e.g. `is_corporate` in
   `mac/group_vars/all.yml` depends on `personal_hostnames` from secrets),
-  but the value only resolves in plays that load secrets first, due to
+  but the value only resolves in plays that load secrets, due to
   Ansible's lazy variable evaluation.
+  - Use `vars_files`, never an `include_vars` task: at `-v` an
+    `include_vars` task prints every value it loaded, passwords included,
+    and its facts also leak into later plays in the run, hiding a play that
+    forgot to load secrets. `vars_files` prints nothing and fails clearly
+    when the file is missing (`no_log` on the task would hide that error).
 - `openwrt` is the exception: `openwrt/group_vars/all/secrets.yml` is a
   symlink to `../../../local/secrets.yml`, so it's auto-loaded by Ansible's
   normal group_vars mechanism for every host in the play — no
-  `include_vars` task needed in any `openwrt/*.yml` playbook. This only
+  `vars_files` needed in any `openwrt/*.yml` playbook. This only
   works because every `openwrt` play lives in a file under `openwrt/`,
   which is what fixes the group_vars lookup's base directory to
   `openwrt/group_vars/`.
 - Exception: connection vars like `ansible_host` are needed *before* Ansible
-  can reach a host, so they can't wait on a play-level var (`include_vars`
+  can reach a host, so they can't wait on a play-level var (`vars_files`
   or group_vars) to resolve inside the play that targets it — see
   `openwrt/inventory.yml`'s `add_host` bootstrap below for the pattern used
   when secret data has to become inventory, not just task-level vars.
@@ -178,7 +183,7 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
 - No committed inventory file — `openwrt/inventory.yml` runs first (against
   `localhost`), reads `openwrt_router_host`/`openwrt_ap_hosts` from
   `local/secrets.yml` (auto-loaded, see `## Secrets` above — no
-  `include_vars` needed even here), and `add_host`s the router + APs into
+  `vars_files` needed even here), and `add_host`s the router + APs into
   the `openwrt`/`router`/`ap` groups at runtime. This keeps real
   IPs/hostnames out of the repo without a second gitignored file alongside
   `local/secrets.yml`. `group_vars`

@@ -2,15 +2,13 @@
 - hosts: all
   become: yes
   become_user: root
+  vars_files:
+    - ../local/secrets.yml
   tasks:
     - name: samba - check if installed
       apt:
         name: samba
         state: present
-
-    - name: samba - read secrets from file
-      include_vars:
-        file: ../local/secrets.yml
 
     # The shares' `force group` (smb_shared-perms.conf). Fixed IDs because
     # server-stack's Kodi container runs as them (KODI_PUID/KODI_PGID).

@@ -2,11 +2,9 @@
 - hosts: all
   become: yes
   become_user: root
+  vars_files:
+    - ../local/secrets.yml
   tasks:
-    - name: ubuntu - read secrets from file
-      include_vars:
-        file: ../local/secrets.yml
-
     - name: ubuntu - set timezone
       community.general.timezone:
         name: "{{ timezone }}"

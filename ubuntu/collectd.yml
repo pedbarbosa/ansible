@@ -2,16 +2,14 @@
 - hosts: all
   become: yes
   become_user: root
+  vars_files:
+    - ../local/secrets.yml
   tasks:
     # lm-sensors: the sensors plugin reads its /etc/sensors3.conf
     - name: collectd - check if installed
       apt:
         name: collectd, lm-sensors
         state: present
-
-    - name: collectd - read secrets from file
-      include_vars:
-        file: ../local/secrets.yml
 
     - name: collectd - create group
       group:

@@ -2,6 +2,8 @@
 # Personal scripts in ~/bin (on the PATH via zshrc.j2). No play-level become,
 # so ~ is the account Ansible connects as.
 - hosts: all
+  vars_files:
+    - ../local/secrets.yml
   tasks:
     # jdupes: openwrt-backup removes duplicate backups with it
     # nmap: dhcp-stragglers' port scans and MAC vendor list
@@ -66,10 +68,6 @@
         - { name: kodi-library-scan, minute: "0", hour: "9,17", job: "~/bin/kodi-library-scan" }
       loop_control:
         label: "{{ item.name }}"
-
-    - name: scripts - read secrets from file
-      include_vars:
-        file: ../local/secrets.yml
 
     # openwrt-backup sources this file and refuses one others can write to
     - name: scripts - configure openwrt-backup
