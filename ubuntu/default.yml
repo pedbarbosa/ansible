@@ -62,6 +62,14 @@
         mode: 0644
       notify: Restart ssh
 
+    # The installer's cloud-init drop-in only set PasswordAuthentication, which
+    # sshd_config now sets itself
+    - name: ssh - remove the cloud-init drop-in
+      file:
+        path: /etc/ssh/sshd_config.d/50-cloud-init.conf
+        state: absent
+      notify: Restart ssh
+
     - name: sysctl - configure sysctl.conf
       copy:
         src: files/sysctl.conf
