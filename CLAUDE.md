@@ -110,6 +110,13 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
 - `~/bin` used to be a symlink to a clone of that repo. Both plays remove the
   symlink (never its target) before creating the real directory. Without
   that, `copy` would follow the link and write into the old clone.
+- Shared convention: silent by default except for what's worth a message
+  (failures, and the containers `docker-update-all` restarted). `-v` prints
+  progress to the console *and* always sends a Slack summary, even when
+  there was nothing to do, so it doubles as a Slack connectivity check.
+  `-h` prints usage; an unknown option is an error. Exceptions:
+  `kodi-library-scan` never uses Slack, and `dhcp-stragglers` is an
+  interactive tool whose `-v` means "one field per line".
 - They run unattended from cron and report failures through `slack-notify`
   (installed to `/usr/local/bin` by `ubuntu/default.yml` and
   `mac/default.yml`). Cron's `PATH` may not include `/usr/local/bin`, so the

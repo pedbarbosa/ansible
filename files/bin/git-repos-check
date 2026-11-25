@@ -2,7 +2,8 @@
 #
 # Fast-forward the git checkouts of shell tooling (oh-my-zsh, fzf, pyenv, rbenv
 # and their plugins) in the current user's home. Checkouts that don't exist on
-# this machine are skipped. Tells Slack only when something fails.
+# this machine are skipped. Tells Slack only when something fails, unless -v
+# is given.
 #
 # Runs on Ubuntu and macOS, where cron may use /bin/bash 3.2: no associative
 # arrays, and guard empty arrays under set -u.
@@ -27,7 +28,8 @@ SLACK_NOTIFY=$(command -v slack-notify || echo /usr/local/bin/slack-notify)
 usage() {
     cat <<EOF
 Usage: $0 [-v] [-h]
-  -v    Print each repository and how many commits it pulled
+  -v    Print each repository's result, and always send a Slack summary
+        (also when everything was up to date)
   -h    Show this help and exit
 EOF
 }
@@ -45,6 +47,13 @@ shift $((OPTIND - 1))
 log() { if [[ "$VERBOSE" == true ]]; then echo "$*"; fi }
 
 FAILURES=()
+UPDATED=""   # a string, not an array: simpler with bash 3.2 and set -u
+
+notify() {
+    if ! printf '%s\n' "$1" | "$SLACK_NOTIFY"; then
+        echo "WARNING: Failed to send the Slack notification" >&2
+    fi
+}
 
 # Record a failure with the last lines of the command's output, without git's hints
 add_failure() {
@@ -69,7 +78,9 @@ for repo in "${REPOS[@]}"; do
         log "$name is up to date"
         continue
     fi
-    log "$name: pulled $(git -C "$repo" rev-list --count "$before..$after") commit(s)"
+    commits=$(git -C "$repo" rev-list --count "$before..$after")
+    log "$name: pulled $commits commit(s)"
+    UPDATED+=$'\n'"• $name: $commits new commit(s)"
 
     # The fzf binary is downloaded by its install script, not tracked in git
     if [[ "$repo" == "$HOME/.fzf" ]]; then
@@ -80,6 +91,13 @@ for repo in "${REPOS[@]}"; do
 done
 
 if [[ ${#FAILURES[@]} -eq 0 ]]; then
+    if [[ "$VERBOSE" == true ]]; then
+        if [[ -n "$UPDATED" ]]; then
+            notify "git-repos-check on $(hostname -s), updated:$UPDATED"
+        else
+            notify "git-repos-check on $(hostname -s): everything is up to date"
+        fi
+    fi
     exit 0
 fi
 
@@ -88,7 +106,5 @@ for failure in ${FAILURES[@]+"${FAILURES[@]}"}; do
     MESSAGE+=$'\n'"• $failure"
 done
 echo "$MESSAGE" >&2
-if ! printf '🚨 %s\n' "$MESSAGE" | "$SLACK_NOTIFY"; then
-    echo "WARNING: Failed to send the Slack notification" >&2
-fi
+notify "🚨 $MESSAGE${UPDATED:+$'\n'Updated:$UPDATED}"
 exit 1

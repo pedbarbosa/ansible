@@ -2,7 +2,8 @@
 #
 # Pull the latest images for the server-stack Compose project and recreate the
 # containers whose image changed. Tells Slack which containers were
-# (re)started, and about any step that failed. Silent when nothing changed.
+# (re)started, and about any step that failed. Silent when nothing changed,
+# unless -v is given.
 
 set -uo pipefail
 
@@ -12,9 +13,29 @@ COMPOSE=(docker compose -f "$DC_FILE" --profile all)
 # Installed by the ansible ubuntu playbook; cron's PATH may not include /usr/local/bin
 SLACK_NOTIFY=$(command -v slack-notify || echo /usr/local/bin/slack-notify)
 
+usage() {
+    cat <<EOF
+Usage: $0 [-v] [-h]
+  -v    Print progress, and always send a Slack summary (also when nothing changed)
+  -h    Show this help and exit
+EOF
+}
+
+VERBOSE=false
+while getopts "vh" opt; do
+    case "$opt" in
+        v) VERBOSE=true ;;
+        h) usage; exit 0 ;;
+        *) usage >&2; exit 1 ;;
+    esac
+done
+
+log() { if [[ "$VERBOSE" == true ]]; then echo "$*"; fi }
+
 ERRORS=""
 
 notify() {
+    log "Sending to Slack:"$'\n'"$1"
     if ! printf '%s\n' "$1" | "$SLACK_NOTIFY"; then
         echo "WARNING: Failed to send the Slack notification" >&2
     fi
@@ -35,10 +56,12 @@ if [[ ! -r "$DC_FILE" ]]; then
 fi
 
 # A failed pull is reported, but the containers whose images did pull are still updated
+log "Pulling images..."
 if ! PULL_OUTPUT=$("${COMPOSE[@]}" pull 2>&1); then
     add_error "docker compose pull" "$PULL_OUTPUT"
 fi
 
+log "Recreating containers with new images..."
 if ! UP_OUTPUT=$("${COMPOSE[@]}" up -d 2>&1); then
     add_error "docker compose up" "$UP_OUTPUT"
 fi
@@ -52,6 +75,8 @@ RESTARTED=$(echo "$UP_OUTPUT" | grep -E "(Recreated|Started|Restarted)" | awk '{
 MESSAGE=""
 if [[ -n "$RESTARTED" ]]; then
     MESSAGE="(Re)started containers:"$'\n'"$RESTARTED"
+elif [[ "$VERBOSE" == true && -z "$ERRORS" ]]; then
+    MESSAGE="docker-update-all: all containers are up to date"
 fi
 if [[ -n "$ERRORS" ]]; then
     MESSAGE="🚨 docker-update-all:$ERRORS${MESSAGE:+$'\n'$MESSAGE}"
