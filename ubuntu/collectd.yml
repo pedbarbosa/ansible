@@ -3,9 +3,10 @@
   become: yes
   become_user: root
   tasks:
+    # lm-sensors: the sensors plugin reads its /etc/sensors3.conf
     - name: collectd - check if installed
       apt:
-        name: collectd
+        name: collectd, lm-sensors
         state: present
 
     - name: collectd - read secrets from file
