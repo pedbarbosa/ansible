@@ -1,16 +1,65 @@
 #!/usr/bin/env bash
+#
+# Pull the latest images for the server-stack Compose project and recreate the
+# containers whose image changed. Tells Slack which containers were
+# (re)started, and about any step that failed. Silent when nothing changed.
 
-# Docker compose file location
+set -uo pipefail
+
 DC_FILE="$HOME/git/server-stack/docker-compose.yaml"
+COMPOSE=(docker compose -f "$DC_FILE" --profile all)
 
-# Pull the latest images, perform up dry-run and list containers to start/restart
-PULL_OUTPUT=$(docker compose -f "$DC_FILE" --profile all pull 2>&1)
-DRY_RUN_OUTPUT=$(docker compose -f "$DC_FILE" --profile all up -d --dry-run 2>&1)
-# Each container appears on several status lines (e.g. Recreated and Started), so keep the first of each
-RESTART_SERVICES=$(echo "$DRY_RUN_OUTPUT" | grep -E "(Recreated|Started|Restarted)" | awk '{print $2}' | grep -v -E "^[a-f0-9]{12}_" | awk '!seen[$0]++')
+# Installed by the ansible ubuntu playbook; cron's PATH may not include /usr/local/bin
+SLACK_NOTIFY=$(command -v slack-notify || echo /usr/local/bin/slack-notify)
 
-# If required, Restart containers and notify Slack
-if [ -n "$RESTART_SERVICES" ]; then
-    echo -e "(Re)starting containers:\n$RESTART_SERVICES" | slack-notify
-    UP_OUTPUT=$(docker compose -f "$DC_FILE" --profile all up -d 2>&1)
+ERRORS=""
+
+notify() {
+    if ! printf '%s\n' "$1" | "$SLACK_NOTIFY"; then
+        echo "WARNING: Failed to send the Slack notification" >&2
+    fi
+}
+
+# Record a failed step with the end of its output
+add_error() {
+    local step=$1 output=$2
+    echo "ERROR: $step failed:" >&2
+    echo "$output" >&2
+    ERRORS+=$'\n'"*$step failed:*"$'\n```\n'"$(printf '%s\n' "$output" | tail -n 20)"$'\n```'
+}
+
+if [[ ! -r "$DC_FILE" ]]; then
+    add_error "Reading the Compose file" "'$DC_FILE' not found"
+    notify "🚨 docker-update-all:$ERRORS"
+    exit 1
+fi
+
+# A failed pull is reported, but the containers whose images did pull are still updated
+if ! PULL_OUTPUT=$("${COMPOSE[@]}" pull 2>&1); then
+    add_error "docker compose pull" "$PULL_OUTPUT"
+fi
+
+if ! UP_OUTPUT=$("${COMPOSE[@]}" up -d 2>&1); then
+    add_error "docker compose up" "$UP_OUTPUT"
+fi
+
+# Containers compose recreated, started or restarted. Each one appears on more than one
+# status line (e.g. Recreated, then Started), so keep the first of each. Skip the
+# <12 hex>_<name> names compose gives old containers while it replaces them.
+RESTARTED=$(echo "$UP_OUTPUT" | grep -E "(Recreated|Started|Restarted)" | awk '{print $2}' \
+    | grep -v -E "^[a-f0-9]{12}_" | awk '!seen[$0]++')
+
+MESSAGE=""
+if [[ -n "$RESTARTED" ]]; then
+    MESSAGE="(Re)started containers:"$'\n'"$RESTARTED"
+fi
+if [[ -n "$ERRORS" ]]; then
+    MESSAGE="🚨 docker-update-all:$ERRORS${MESSAGE:+$'\n'$MESSAGE}"
+fi
+if [[ -n "$MESSAGE" ]]; then
+    notify "$MESSAGE"
+fi
+
+if [[ -n "$ERRORS" ]]; then
+    exit 1
 fi
