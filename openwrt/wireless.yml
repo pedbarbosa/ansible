@@ -1,0 +1,32 @@
+---
+# /etc/config/wireless - the radios differ per hardware model (path, band,
+# htmode, txpower), so each host group defines its own openwrt_wifi_radios
+# (group_vars/router.yml, and group_vars/ap_<profile>.yml once the APs are
+# added). The SSIDs are the same on every device so clients can roam
+# between them, so they're defined once, in openwrt_wifi_ifaces
+# (group_vars/all/vars.yml), with names and keys from local/secrets.yml.
+#
+# Hosts without openwrt_wifi_radios are skipped rather than given a file
+# with no radios, which would wipe their wifi.
+#
+# no_log: the file holds the wifi keys (same as network.yml's router task,
+# which hides the PPPoE password). This also hides the -D diff.
+#
+# No restart handler: `wifi reload` runs a full netifd reload (`ubus call
+# network reload`), so it would also apply any /etc/config/network change
+# that network.yml has staged but deliberately left unapplied. Run
+# `wifi reload` by hand once the device's /etc/config/network is what you
+# want running.
+- hosts: openwrt
+  gather_facts: false
+  tasks:
+    - name: openwrt - Skip hosts without radio definitions
+      ansible.builtin.meta: end_host
+      when: openwrt_wifi_radios is not defined
+
+    - name: openwrt - Configure wireless
+      community.openwrt.template:
+        src: files/wireless.conf
+        dest: /etc/config/wireless
+        mode: "0600"
+      no_log: true

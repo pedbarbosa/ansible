@@ -38,3 +38,18 @@ openwrt_ntp_pool_servers:
   - 1.openwrt.pool.ntp.org
   - 2.openwrt.pool.ntp.org
   - 3.openwrt.pool.ntp.org
+
+# openwrt/wireless.yml (wireless.conf) - the router's two radios. Which SSIDs
+# each radio carries is picked by band from openwrt_wifi_ifaces
+# (group_vars/all/vars.yml).
+openwrt_wifi_radios:
+  - name: radio0
+    path: platform/soc/18000000.wifi
+    band: 2g
+    htmode: HE20
+    txpower: 13
+  - name: radio1
+    path: platform/soc/18000000.wifi+1
+    band: 5g
+    htmode: HE80
+    txpower: 18

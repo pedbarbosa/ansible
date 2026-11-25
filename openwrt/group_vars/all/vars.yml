@@ -62,3 +62,25 @@ openwrt_log_port: 514
 openwrt_log_size: "{{ openwrt_log_size_router if 'router' in group_names else 64 }}"
 openwrt_cronloglevel: "{{ openwrt_cronloglevel_router if 'router' in group_names else 5 }}"
 openwrt_leds: []
+
+# openwrt/wireless.yml (wireless.conf) - the SSIDs, the same on every device
+# that has radios (openwrt_wifi_radios in its group_vars). `bands` picks the
+# radios that carry each SSID by band rather than by radio name, since radio
+# numbering differs between devices. `roaming` turns on 802.11r fast
+# transition, which needs the same mobility_domain on every device. nasid is
+# left unset, so each radio uses its own MAC address as its NAS ID.
+openwrt_wifi_ifaces:
+  - name: default
+    network: lan
+    bands: [2g, 5g]
+    ssid: "{{ openwrt_wifi_lan_ssid }}"
+    key: "{{ openwrt_wifi_lan_key }}"
+    encryption: psk2
+    roaming: true
+    mobility_domain: "{{ openwrt_wifi_lan_mobility_domain }}"
+  - name: iot
+    network: iot
+    bands: [2g]
+    ssid: "{{ openwrt_wifi_iot_ssid }}"
+    key: "{{ openwrt_wifi_iot_key }}"
+    encryption: psk-mixed

@@ -367,6 +367,30 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   other playbook here: a bad bridge/VLAN/IP push can sever SSH/LuCI access
   to the device outright, so this only ever stages the file — apply by
   hand, one device at a time, with console/physical access on standby.
+- `openwrt/wireless.yml` (`/etc/config/wireless`) splits the file by what
+  varies. The `wifi-device` sections depend on the hardware (path, band,
+  htmode, txpower), so each group defines `openwrt_wifi_radios` in its own
+  group_vars (`router.yml`, later `ap_<profile>.yml`). The `wifi-iface`
+  sections must be the same everywhere for roaming, so they're defined once
+  in `openwrt_wifi_ifaces` (`group_vars/all/vars.yml`), with SSIDs, keys,
+  the 802.11r mobility domain and the country code from `local/secrets.yml`.
+  - Each iface lists the `bands` it's on, and the template puts it on every
+    radio with that band. It matches by band, not by radio name, because
+    `radio0` isn't the 2.4 GHz radio on every device. Section names are
+    `<iface>_<radio>` (e.g. `default_radio1`, `iot_radio0`).
+  - `nasid` isn't set, so hostapd uses each radio's MAC address as its NAS
+    ID. That keeps it unique per AP, which 802.11r needs, without a
+    per-device secret.
+  - A host with no `openwrt_wifi_radios` stops at a `meta: end_host`, so the
+    playbook never pushes a file with no radios (which would wipe its wifi).
+    Adding an AP means adding its radios to its `ap_<profile>.yml`.
+  - The task has `no_log: true` because the file holds the keys. That also
+    hides the `-D` diff, same as `network.yml`'s router task.
+  - The file is `0600`, unlike OpenWrt's default `0644`, because it holds
+    the keys.
+  - No restart handler: `wifi reload` is `ubus call network reload`, a full
+    netifd reload that would also apply any `/etc/config/network` change
+    `network.yml` staged in the same run. Run `wifi reload` by hand.
 
 ## Gotchas learned the hard way
 
