@@ -52,6 +52,7 @@
         - "files/10-help-text"
         - "files/89-docker-info"
         - "files/90-updates-available"
+        - "files/98-reboot-required"
       notify: Update MOTD
 
     # 90-updates-available reads counts that this script caches, since asking
