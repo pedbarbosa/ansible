@@ -443,6 +443,13 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
     verbatim to the router, and LuCI drops comments when it saves, so
     comments in it would show up as drift. Randomised MACs are skipped, since
     a static lease on one can stop matching.
+  - `--uci` doesn't keep a device's current address, which comes from the
+    dynamic pool. It assigns the next free one in `--static-range` (default
+    `.80`-`.99`) on the same /24. "Free" means not in any `config host`,
+    `/etc/ethers`, neighbour entry, router interface or lease. It also warns
+    if the range overlaps a pool. A pool runs from `start` to
+    `start + limit - 1`: `limit` is a count, so start 100 with limit 150 is
+    `.100`-`.249`.
 
 ## Gotchas learned the hard way
 

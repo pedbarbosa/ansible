@@ -12,8 +12,11 @@ findings still stand.
 With --uci it prints a `config host` block per straggler instead, ready for
 local/router-dhcp-extra.conf (stdout is UCI only; notes go to stderr):
   dhcp-stragglers --uci >> local/router-dhcp-extra.conf
+Each one gets the next free address in the static range (default .80-.99,
+--static-range), on its own subnet, rather than keeping its current one from
+the dynamic pool. It moves at its next DHCP renewal or reconnect.
 
-Usage: dhcp-stragglers [-v] [-O] [--no-scan] [-p N] [--uci] [ssh-host]
+Usage: dhcp-stragglers [-v] [-O] [--no-scan] [-p N] [--uci [--static-range A-B]] [ssh-host]
 """
 import argparse
 import concurrent.futures as cf
@@ -26,7 +29,8 @@ import sys
 
 # Runs on the router (BusyBox sh). One tab-separated line per straggler:
 # ip, mac, dev, neighbour state, lease expiry (AEST), lease hostname,
-# ping ttl, ping ms. "-" when unknown.
+# ping ttl, ping ms. "-" when unknown. Then "used<TAB>ip" for every address
+# already taken, and "pool<TAB>dhcp.<iface>.start|limit=..." for the pools.
 REMOTE = r"""
 LEASES=$(uci -q get 'dhcp.@dnsmasq[0].leasefile' || echo /tmp/dhcp.leases)
 KNOWN=/tmp/stragglers.known
@@ -62,6 +66,16 @@ KNOWN=/tmp/stragglers.known
   set -- $(ping -c 1 -W 1 "$ip" 2>/dev/null | sed -n 's/.*ttl=\([0-9]*\) time=\([0-9.]*\).*/\1 \2/p')
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$ip" "$mac" "$dev" "$state" "$expires" "$name" "${1:--}" "${2:--}"
 done
+
+# Every IPv4 address already in use or reserved, so --uci only picks free ones
+{
+  uci -q show dhcp | grep '\.ip='
+  cat /etc/ethers 2>/dev/null
+  ip -4 neigh show
+  ip -4 addr show
+  [ -f "$LEASES" ] && cat "$LEASES"
+} | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | sort -u | awk '{print "used\t" $0}'
+uci -q show dhcp | grep -E '\.(start|limit)=' | awk '{print "pool\t" $0}'
 """
 
 VENDOR_FILES = [
@@ -228,8 +242,39 @@ def investigate(row, args, vendors):
     ]
 
 
-def uci_hosts(rows, vendors):
+def static_range(text):
+    m = re.fullmatch(r"(\d{1,3})-(\d{1,3})", text)
+    if not m or not 1 <= int(m[1]) <= int(m[2]) <= 254:
+        raise argparse.ArgumentTypeError("expected A-B with 1 <= A <= B <= 254, e.g. 80-99")
+    return int(m[1]), int(m[2])
+
+
+def check_pools(pools, rng):
+    """Warn (stderr) if the static range overlaps a DHCP pool."""
+    for iface, p in sorted(pools.items()):
+        if "start" not in p:
+            continue
+        start, end = p["start"], p["start"] + p.get("limit", 150) - 1
+        if start <= rng[1] and rng[0] <= end:
+            print(f"warning: static range .{rng[0]}-.{rng[1]} overlaps the {iface} DHCP pool "
+                  f".{start}-.{end}", file=sys.stderr)
+
+
+def uci_hosts(rows, vendors, used, rng):
     """`config host` blocks on stdout, notes on stderr."""
+    used = set(used)
+
+    def allocate(ip):
+        *prefix, last = ip.split(".")
+        if rng[0] <= int(last) <= rng[1]:
+            return ip  # already in the static range
+        for n in range(rng[0], rng[1] + 1):
+            candidate = ".".join(prefix + [str(n)])
+            if candidate not in used:
+                used.add(candidate)
+                return candidate
+        return None
+
     taken = {}
     for row in rows:
         lease = row["name"] if row["name"] not in ("-", "*") else ""
@@ -241,6 +286,15 @@ def uci_hosts(rows, vendors):
             print(f"skipped {ip} {mac}: randomised MAC, it may change; fix the device's "
                   "private address for this network first", file=sys.stderr)
             continue
+        new_ip = allocate(ip)
+        if new_ip is None:
+            print(f"skipped {ip} {mac} ({vendor}): no free address left in .{rng[0]}-.{rng[1]}",
+                  file=sys.stderr)
+            continue
+        if new_ip != ip:
+            print(f"{ip} -> {new_ip} {mac} ({vendor}): moves at its next DHCP renewal or reconnect",
+                  file=sys.stderr)
+        ip = new_ip
         lease = row["name"] if row["name"] not in ("-", "*") else ""
         name = re.sub(r"[^A-Za-z0-9-]+", "-", lease).strip("-")
         tail = "-".join(ip.split(".")[-2:])
@@ -267,6 +321,8 @@ def main():
     ap.add_argument("--no-scan", action="store_true", help="skip nmap (router data, vendor, DNS only)")
     ap.add_argument("--uci", action="store_true",
                     help="print `config host` blocks for local/router-dhcp-extra.conf instead (no scan)")
+    ap.add_argument("--static-range", type=static_range, default=(80, 99), metavar="A-B",
+                    help="last-octet range --uci assigns addresses from (default: 80-99)")
     ap.add_argument("-j", "--jobs", type=int, default=8, help="hosts investigated in parallel (default: 8)")
     args = ap.parse_args()
 
@@ -274,7 +330,17 @@ def main():
     if res.returncode != 0:
         sys.exit(f"ssh {args.host} failed ({res.returncode}): {res.stderr.strip()}")
     keys = ["ip", "mac", "dev", "state", "expires", "name", "ttl", "ms"]
-    rows = [dict(zip(keys, line.split("\t"))) for line in res.stdout.splitlines() if line.count("\t") == 7]
+    rows, used, pools = [], set(), {}
+    for line in res.stdout.splitlines():
+        kind, _, rest = line.partition("\t")
+        if kind == "used":
+            used.add(rest)
+        elif kind == "pool":
+            m = re.match(r"dhcp\.(\w+)\.(start|limit)='?(\d+)", rest)
+            if m:
+                pools.setdefault(m[1], {})[m[2]] = int(m[3])
+        elif line.count("\t") == 7:
+            rows.append(dict(zip(keys, line.split("\t"))))
     if not rows:
         print("No stragglers: every device the router sees has a static lease.")
         return
@@ -282,7 +348,8 @@ def main():
 
     vendors = load_vendors()
     if args.uci:
-        uci_hosts(rows, vendors)
+        check_pools(pools, args.static_range)
+        uci_hosts(rows, vendors, used, args.static_range)
         return
 
     if args.os and not args.no_scan and subprocess.run(["sudo", "-v"]).returncode != 0:
