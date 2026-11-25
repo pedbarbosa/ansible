@@ -455,7 +455,8 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   `community.openwrt.command`, which a dry run skips. Keep everything in
   `rc.local` safe to run twice for that reason.
 - `openwrt/tools/dhcp-stragglers` is a standalone Python 3 script (stdlib
-  only), not a playbook. It runs a BusyBox `sh` heredoc on the router over
+  only), not a playbook. `ubuntu/scripts.yml` copies it into `~/bin` on
+  Ubuntu and installs `nmap` for it, so edit it here, not the copy. It runs a BusyBox `sh` heredoc on the router over
   `ssh <host> sh -s` to list MACs in the neighbour table or lease file that
   have no `config host`/`/etc/ethers` entry. Then, from the local machine,
   it adds the MAC vendor (offline, nmap's or ieee-data's OUI list), reverse

@@ -3,9 +3,11 @@
 # so ~ is the account Ansible connects as.
 - hosts: all
   tasks:
-    - name: scripts - install jdupes (openwrt-backup removes duplicate backups with it)
+    # jdupes: openwrt-backup removes duplicate backups with it
+    # nmap: dhcp-stragglers' port scans and MAC vendor list
+    - name: scripts - install the packages the scripts use
       apt:
-        name: jdupes
+        name: [jdupes, nmap]
         state: present
       become: yes
 
@@ -41,6 +43,8 @@
         - files/bin/snap-clean
         # Shared with mac/scripts.yml
         - "{{ playbook_dir }}/../files/bin/git-repos-check"
+        # Run by hand; kept with the OpenWrt playbooks it belongs to
+        - "{{ playbook_dir }}/../openwrt/tools/dhcp-stragglers"
 
     - name: scripts - read secrets from file
       include_vars:
