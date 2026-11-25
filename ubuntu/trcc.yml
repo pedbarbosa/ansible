@@ -45,6 +45,14 @@
       when: trcc_linux_installed_version.stdout != trcc_linux_version
       notify: trcc - Restart
 
+    # Releases before the trcc group didn't create it, and a dry run only
+    # simulates the upgrade that would, so check before adding the user to it
+    - name: trcc - check for the trcc group
+      getent:
+        database: group
+        key: trcc
+        fail_key: false
+
     # udev's uaccess tag only reaches users at the machine's own screen, so a
     # daemon running without a login needs the group (from the next login, or
     # a reboot for the lingering user manager)
@@ -54,7 +62,7 @@
         groups: trcc
         append: true
       become: yes
-      when: not ansible_check_mode or trcc_linux_installed_version.rc == 0
+      when: not ansible_check_mode or ansible_facts['getent_group']['trcc'] is not none
 
     - name: trcc - keep the user's services running without a login
       command: "loginctl enable-linger {{ ansible_facts['user_id'] }}"
