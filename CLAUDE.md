@@ -485,6 +485,27 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   skip what they manage, so keep it in step when adding a module type that
   deploys files. It's read-only and redacts its output (secrets.yml and
   server-stack `.env` values, host/user names, IPs, MACs, UUIDs, tokens).
+  - It skips dotfiles identical to `/etc/skel`'s and those in
+    `DOTFILE_IGNORE` (kept out of Ansible on purpose, e.g. `.videolib.yml`),
+    and users and groups any `user`/`group` task names.
+  - Mounts are compared with `ubuntu/reference/fstab`, which it renders with
+    secrets.yml. Update that file when a disk is added or replaced: no
+    playbook deploys fstab.
+- Tasks that change config with a `command` (or anything the tool doesn't
+  parse) aren't seen as managing a file, so prefer `copy`/`template` with
+  the known result: `/etc/docker/daemon.json` is copied with what
+  `nvidia-ctk runtime configure --runtime=docker` writes, rather than
+  running it.
+- `ubuntu/dotfiles.yml` reads `MYSQL_ROOT_PASSWORD` from
+  `~/git/server-stack/.env` on the server for `~/.my.cnf`, so the password
+  lives in one place and not in secrets.yml. The extraction avoids regex
+  backreferences, so there's no YAML-plus-Jinja backslash escaping to get
+  right. `no_log` hides those tasks' diffs.
+- `ubuntu/trcc.yml` installs `trcc-linux` from its latest GitHub release
+  (the plain `_all.deb`; the `.legacy` one is for Ubuntu 24.04 and older)
+  and runs `trccd` as a systemd user unit. That needs lingering
+  (`loginctl enable-linger`) and the user in the package's `trcc` group,
+  since udev's `uaccess` only covers a local seat.
 - `openwrt/tools/dhcp-stragglers` is a standalone Python 3 script (stdlib
   only), not a playbook. `ubuntu/scripts.yml` copies it into `~/bin` on
   Ubuntu and installs `nmap` for it, so edit it here, not the copy. It runs a BusyBox `sh` heredoc on the router over
