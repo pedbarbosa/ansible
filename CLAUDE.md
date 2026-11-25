@@ -126,8 +126,16 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   `ansible.builtin.cron`. It only manages entries under its own
   `#Ansible: <name>` markers, so don't expect it to remove hand-added lines;
   change a schedule in the play, not with `crontab -e`. Since every job
-  reports to Slack itself, no cron line pipes into `slack-notify`. Macs get
-  no cron jobs from Ansible.
+  reports to Slack itself, no cron line pipes into `slack-notify`.
+- On macOS, `mac/scripts.yml` schedules `git-repos-check` with a launchd
+  agent (`~/Library/LaunchAgents/local.git-repos-check.plist`, from
+  `mac/files/git-repos-check.plist.j2`) rather than cron, because launchd
+  runs a job missed during sleep when the Mac wakes. launchd's default `PATH`
+  lacks Homebrew, which `slack-notify`'s `python3` (with `requests`) needs,
+  so the plist sets `PATH` and passes `dotfile_env`'s proxy/CA variables for
+  corporate Macs. A handler reloads the agent (`launchctl bootout` +
+  `bootstrap`) when the plist changes. Output goes to
+  `~/Library/Logs/git-repos-check.log`.
 - `git-repos-check` also runs on macOS, where cron may use `/bin/bash` 3.2:
   no associative arrays, `mapfile` or `${var,,}`, and expand possibly-empty
   arrays under `set -u` as `${a[@]+"${a[@]}"}`. On a Mac, pyenv and rbenv
