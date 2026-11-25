@@ -47,7 +47,7 @@ USER = getpass.getuser()
 
 # Deployed by run.sh rather than a playbook
 RUN_SH_FILES = {str(HOME / ".ssh/config"), "/etc/ansible/hosts", f"/etc/sudoers.d/{USER}"}
-RUN_SH_PACKAGES = {"ansible"}
+RUN_SH_PACKAGES = {"ansible", "sshpass"}
 
 # Directories where hand-made config usually ends up
 CONFIG_DIRS = [
