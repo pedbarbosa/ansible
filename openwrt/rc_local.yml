@@ -1,0 +1,23 @@
+---
+# /etc/rc.local - router only. Holds the ethtool workaround for the router's
+# tx/rx queue hangs (see files/rc.local). ethtool comes from
+# openwrt_packages_router (openwrt/default.yml).
+#
+# The handler runs the script straight away, so a change applies now rather
+# than at the next boot. That's fine while everything in it can safely run
+# twice. community.openwrt.command doesn't support check mode, so a dry run
+# skips the handler.
+- hosts: router
+  gather_facts: false
+  tasks:
+    - name: openwrt - Configure rc.local
+      community.openwrt.copy:
+        src: files/rc.local
+        dest: /etc/rc.local
+        mode: "0644"
+      notify: openwrt - Run rc.local
+
+  handlers:
+    - name: openwrt - Run rc.local
+      community.openwrt.command:
+        cmd: sh /etc/rc.local

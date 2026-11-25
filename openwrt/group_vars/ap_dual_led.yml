@@ -6,3 +6,22 @@ openwrt_leds:
   - name: White
     sysfs: "white:dome"
     trigger: default-on
+
+# openwrt/wireless.yml (wireless.conf) - this AP's radios. SSIDs come from
+# openwrt_wifi_ifaces (group_vars/all/vars.yml), picked by band.
+# `iface_sections` keeps the section names LuCI gave this AP's SSIDs; the
+# 5 GHz one already has the default name.
+openwrt_wifi_radios:
+  - name: radio0
+    path: platform/soc/18000000.wifi
+    band: 2g
+    htmode: HE20
+    txpower: 13
+    iface_sections:
+      default: wifinet2
+      iot: wifinet_u
+  - name: radio1
+    path: platform/soc/18000000.wifi+1
+    band: 5g
+    htmode: HE80
+    txpower: 18

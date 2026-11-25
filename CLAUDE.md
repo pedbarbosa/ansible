@@ -367,8 +367,99 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   other playbook here: a bad bridge/VLAN/IP push can sever SSH/LuCI access
   to the device outright, so this only ever stages the file — apply by
   hand, one device at a time, with console/physical access on standby.
+- `openwrt/wireless.yml` (`/etc/config/wireless`) splits the file by what
+  varies. The `wifi-device` sections depend on the hardware (path, band,
+  htmode, txpower), so each group defines `openwrt_wifi_radios` in its own
+  group_vars (`router.yml`, `ap_<profile>.yml`). The `wifi-iface`
+  sections must be the same everywhere for roaming, so they're defined once
+  in `openwrt_wifi_ifaces` (`group_vars/all/vars.yml`), with SSIDs, keys,
+  the 802.11r mobility domain and the country code from `local/secrets.yml`.
+  - Each iface lists the `bands` it's on, and the template puts it on every
+    radio with that band. It matches by band, not by radio name, because
+    `radio0` isn't the 2.4 GHz radio on every device. Section names are
+    `<iface>_<radio>` (e.g. `default_radio1`), unless the radio's
+    `iface_sections` maps the iface to the name LuCI already gave it on that
+    device (the router's IoT SSID stays `wifinet4`). Only the label changes,
+    since nothing else refers to these sections, but keeping it gives a
+    clean diff against the device.
+  - The template writes sections in LuCI's order, also for a clean diff:
+    SSIDs in `openwrt_wifi_ifaces` order, each radio's `wifi-device` just
+    before its first SSID, and radios without SSIDs at the end. On the
+    router that puts `wifinet4` last, where LuCI appended it. Within a
+    radio, SSIDs keep the same relative order either way, so the
+    `phyN-apM` interface names don't change.
+  - Option order within a section follows LuCI too. SSIDs OpenWrt set up
+    itself (`default_radio*`) have `network` right after `device`, while
+    ones added in LuCI (`wifinet4`) have it last, after `key`. The
+    iface's `network_last: true` picks the second order.
+  - The router's file was matched exactly, but the APs' weren't. LuCI left
+    each AP with its own option and section order (e.g. `band` before
+    `channel`, `network` after `mode`), and matching that would take a
+    per-device flag for almost every option. The APs were reordered once on
+    their first run instead. uci keeps the existing order when LuCI edits a
+    section, so it stays stable afterwards. Don't add more order flags for
+    the APs.
+  - `nasid` (802.11r NAS ID) is the same on every device, so it's one
+    map by band, `openwrt_wifi_nasid` in `group_vars/all/vars.yml`. Its
+    values reuse the SSID secrets (2g: LAN SSID, 5g: IoT SSID), because
+    that's what the devices were already set to. NAS IDs don't need to
+    differ between APs here: with `ft_psk_generate_local` each AP derives
+    the roaming keys from the PSK itself. It's rendered just above
+    `mobility_domain`, on roaming ifaces only. A radio whose band isn't in
+    the map is a template error.
+  - A host with no `openwrt_wifi_radios` stops at a `meta: end_host`, so the
+    playbook never pushes a file with no radios (which would wipe its wifi).
+    Adding an AP means adding its radios to its `ap_<profile>.yml`.
+  - The task has `no_log: true` because the file holds the keys. That also
+    hides the `-D` diff, same as `network.yml`'s router task.
+  - The file is `0600`, unlike OpenWrt's default `0644`, because it holds
+    the keys.
+  - No restart handler: `wifi reload` is `ubus call network reload`, a full
+    netifd reload that would also apply any `/etc/config/network` change
+    `network.yml` staged in the same run. Run `wifi reload` by hand.
+- `openwrt/rc_local.yml` (`/etc/rc.local`, router only) carries
+  `ethtool -K eth0 rx-gro-list off`, the fix for the router's tx/rx queues
+  stalling on every core and on eth0/eth1. Turning off tso/gso/gro and
+  irqbalance didn't help, so they're left out (irqbalance stays off, since
+  `packet_steering '2'` in `network.router.conf` already spreads the load).
+  `ethtool` is in `openwrt_packages_router`. The file is static and
+  deployed with `copy`. On change, a handler runs it straight away with
+  `community.openwrt.command`, which a dry run skips. Keep everything in
+  `rc.local` safe to run twice for that reason.
+- `openwrt/tools/dhcp-stragglers` is a standalone Python 3 script (stdlib
+  only), not a playbook. It runs a BusyBox `sh` heredoc on the router over
+  `ssh <host> sh -s` to list MACs in the neighbour table or lease file that
+  have no `config host`/`/etc/ethers` entry. Then, from the local machine,
+  it adds the MAC vendor (offline, nmap's or ieee-data's OUI list), reverse
+  DNS and an nmap scan. Nothing is sent to outside services.
+  - The router-side part has to stay BusyBox-compatible: no `<(...)`, and
+    no awk variable named `exp` (a built-in function).
+  - The lease file's first field is the lease *expiry*, not when it was
+    handed out.
+  - IoT vendors (`IOT_VENDORS`) override the ping-TTL OS guess: some ESP8266
+    firmware uses TTL 128, which the TTL heuristic reads as Windows.
+  - `--uci` writes only UCI to stdout and notes to stderr, so it can be
+    appended straight to `local/router-dhcp-extra.conf`. That file is copied
+    verbatim to the router, and LuCI drops comments when it saves, so
+    comments in it would show up as drift. Randomised MACs are skipped, since
+    a static lease on one can stop matching.
+  - `--uci` doesn't keep a device's current address, which comes from the
+    dynamic pool. It assigns the next free one in `--static-range` (default
+    `.80`-`.99`) on the same /24. "Free" means not in any `config host`,
+    `/etc/ethers`, neighbour entry, router interface or lease. It also warns
+    if the range overlaps a pool. A pool runs from `start` to
+    `start + limit - 1`: `limit` is a count, so start 100 with limit 150 is
+    `.100`-`.249`.
 
 ## Gotchas learned the hard way
+
+- **`is defined` doesn't catch a missing secret one level down.** If a
+  var's value is a template referring to a missing var (e.g. a dict entry
+  `nasid: "{{ some_missing_secret }}"`), Ansible treats the value as
+  undefined, so `x.nasid is defined` is just false and the option is
+  silently dropped. This happened with an AP's NAS ID. To make a missing
+  secret fail the run, check for the key (`'nasid' in x`) or render the
+  value unconditionally.
 
 - **zsh's builtin `printf` is not bash's/coreutils' `printf`.** In zsh,
   `printf "%d" some_bareword` evaluates `some_bareword` as an arithmetic

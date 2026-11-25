@@ -1,0 +1,10 @@
+# File managed by Ansible - https://github.com/pedbarbosa/ansible
+# Runs once at the end of boot.
+
+# The router hung every so often: tx/rx queues stopped on every core and on
+# eth0/eth1. Turning off RX GRO list on eth0 fixed it. Turning off
+# tso/gso/gro on eth0 and eth1 wasn't needed, and irqbalance wasn't the
+# cause.
+ethtool -K eth0 rx-gro-list off
+
+exit 0
