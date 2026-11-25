@@ -41,6 +41,15 @@ server/workstation setup and a macOS workstation setup, one repo, run via
 
 ## Dry-run convention
 
+`ansible.cfg` turns off `display_ok_hosts` and `display_skipped_hosts`, so
+output shows only tasks that change something or fail; the default callback
+then holds back each task's banner until it has a result worth printing.
+When asking the user to paste output, remember that ok and skipped tasks
+won't be in it (they can add `ANSIBLE_DISPLAY_OK_HOSTS=true` and
+`ANSIBLE_DISPLAY_SKIPPED_HOSTS=true`). Ansible reads only the first config
+file it finds, so this one replaces any `~/.ansible.cfg` or
+`/etc/ansible/ansible.cfg` when run from the repo root.
+
 `run.sh` always runs `ansible-playbook -CD <playbook>.yml` (check + diff)
 first and prints a reminder to re-run with `-v` to apply. Keep this
 "preview by default" behavior in mind when adding tasks:
