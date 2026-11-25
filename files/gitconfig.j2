@@ -2,10 +2,11 @@
 
 [push]
 	default = simple
+	autoSetupRemote = true
 [user]
 	name = Pedro Barbosa
 	email = pedbarbosa@users.noreply.github.com
 [core]
-	editor = /opt/homebrew/bin/vim
+	editor = {{ homebrew_prefix ~ '/bin/vim' if zsh_is_mac else 'vim' }}
 [pull]
 	rebase = true

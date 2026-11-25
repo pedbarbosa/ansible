@@ -22,9 +22,10 @@
             wget,
           ]
         state: present
+    # Shared with ubuntu/dotfiles.yml
     - name: Configure .gitconfig
-      copy:
-        src: files/gitconfig
+      template:
+        src: "{{ playbook_dir }}/../files/gitconfig.j2"
         dest: "{{ home_dir }}/.gitconfig"
         mode: 0640
     - name: slack-notify - Ensure packaging module is available (required by ansible.builtin.pip on Python 3.12+)

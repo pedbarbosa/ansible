@@ -8,6 +8,7 @@
 # Services and configuration for Ubuntu
 - import_playbook: ubuntu/collectd.yml
 - import_playbook: ubuntu/docker.yml
+- import_playbook: ubuntu/dotfiles.yml
 - import_playbook: ubuntu/logrotate.yml
 - import_playbook: ubuntu/pms.yml
 - import_playbook: ubuntu/ruby.yml
