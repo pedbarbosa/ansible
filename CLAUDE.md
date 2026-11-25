@@ -162,7 +162,7 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
     is since `group_vars/router.yml` and the `'router' in group_names`
     checks depend on it. Don't refer to the device itself as `gateway`
     anywhere else. The AP inventory names (from `openwrt_ap_hosts[].name`
-    in secrets, e.g. `ap-upstairs`) don't collide with the `ap` group name,
+    in secrets, e.g. `ap1`) don't collide with the `ap` group name,
     so they're unaffected.
 - `openwrt/default.yml` runs an explicit `apk update` as a `pre_task`,
   before the `community.openwrt.init` role. This repo now targets OpenWrt
