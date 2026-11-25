@@ -42,17 +42,15 @@ openwrt_ntp_pool_servers:
 
 # openwrt/wireless.yml (wireless.conf) - the router's two radios. Which SSIDs
 # each radio carries is picked by band from openwrt_wifi_ifaces
-# (group_vars/all/vars.yml). `nasid` is set on the radio's roaming SSIDs: it's
-# per device rather than shared, so it lives here, from a per-radio secret.
-# `iface_sections` keeps a section name LuCI already gave an SSID on this radio
-# (otherwise it's <iface>_<radio>), so the file matches what's on the device.
+# (group_vars/all/vars.yml). `iface_sections` keeps a section name LuCI
+# already gave an SSID on this radio (otherwise it's <iface>_<radio>), so the
+# file matches what's on the device.
 openwrt_wifi_radios:
   - name: radio0
     path: platform/soc/18000000.wifi
     band: 2g
     htmode: HE20
     txpower: 13
-    nasid: "{{ openwrt_wifi_router_nasid.radio0 }}"
     iface_sections:
       iot: wifinet4
   - name: radio1
@@ -60,4 +58,3 @@ openwrt_wifi_radios:
     band: 5g
     htmode: HE80
     txpower: 18
-    nasid: "{{ openwrt_wifi_router_nasid.radio1 }}"

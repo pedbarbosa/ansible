@@ -399,16 +399,14 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
     their first run instead. uci keeps the existing order when LuCI edits a
     section, so it stays stable afterwards. Don't add more order flags for
     the APs.
-  - `nasid` (802.11r NAS ID) must differ between devices, so it's set per
-    radio in `openwrt_wifi_radios` (e.g. `openwrt_wifi_router_nasid.radio0`
-    from secrets), not on the shared iface. It's rendered just above
-    `mobility_domain`, on roaming ifaces only. A radio without `nasid`
-    leaves it unset, and hostapd then falls back to the radio's MAC address.
-    The template checks `'nasid' in radio`, not `radio.nasid is defined`.
-    Ansible treats a value that refers to a missing secret as undefined, so
-    `is defined` silently dropped `nasid` on an AP whose secret was missing.
-    Checking for the key makes that a template error instead.
-    Each AP profile has its own `openwrt_wifi_<profile>_nasid` secret.
+  - `nasid` (802.11r NAS ID) is the same on every device, so it's one
+    map by band, `openwrt_wifi_nasid` in `group_vars/all/vars.yml`. Its
+    values reuse the SSID secrets (2g: LAN SSID, 5g: IoT SSID), because
+    that's what the devices were already set to. NAS IDs don't need to
+    differ between APs here: with `ft_psk_generate_local` each AP derives
+    the roaming keys from the PSK itself. It's rendered just above
+    `mobility_domain`, on roaming ifaces only. A radio whose band isn't in
+    the map is a template error.
   - A host with no `openwrt_wifi_radios` stops at a `meta: end_host`, so the
     playbook never pushes a file with no radios (which would wipe its wifi).
     Adding an AP means adding its radios to its `ap_<profile>.yml`.
@@ -430,6 +428,14 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   `rc.local` safe to run twice for that reason.
 
 ## Gotchas learned the hard way
+
+- **`is defined` doesn't catch a missing secret one level down.** If a
+  var's value is a template referring to a missing var (e.g. a dict entry
+  `nasid: "{{ some_missing_secret }}"`), Ansible treats the value as
+  undefined, so `x.nasid is defined` is just false and the option is
+  silently dropped. This happened with an AP's NAS ID. To make a missing
+  secret fail the run, check for the key (`'nasid' in x`) or render the
+  value unconditionally.
 
 - **zsh's builtin `printf` is not bash's/coreutils' `printf`.** In zsh,
   `printf "%d" some_bareword` evaluates `some_bareword` as an arithmetic
