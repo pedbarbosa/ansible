@@ -9,7 +9,8 @@ manage, then lists:
   4. Files that no package or playbook owns, in common config directories and /opt
   5. apt packages installed by hand that no playbook installs, and snaps
   6. Home dotfiles that no playbook deploys
-  7. /etc/fstab mounts, and local users and groups
+  7. /etc/fstab mounts missing from ubuntu/reference/fstab, and local users
+     and groups no playbook creates
 
 Everything printed is redacted: values from local/secrets.yml and
 server-stack's .env, the host and user names, IPs, MACs, UUIDs, emails and
@@ -51,7 +52,7 @@ RUN_SH_FILES = {str(HOME / ".ssh/config"), "/etc/ansible/hosts", f"/etc/sudoers.
 CONFIG_DIRS = [
     "/etc/apt/keyrings", "/etc/apt/sources.list.d", "/etc/collectd/collectd.conf.d",
     "/etc/cron.daily", "/etc/cron.hourly", "/etc/cron.weekly", "/etc/cron.monthly", "/etc/docker",
-    "/etc/logrotate.d", "/etc/modprobe.d", "/etc/netplan", "/etc/profile.d",
+    "/etc/logrotate.d", "/etc/modprobe.d", "/etc/modules-load.d", "/etc/netplan", "/etc/profile.d",
     "/etc/security/limits.d", "/etc/ssh/sshd_config.d", "/etc/sudoers.d", "/etc/sysctl.d",
     "/etc/syslog-ng/conf.d", "/etc/udev/rules.d", "/etc/update-motd.d",
     "/usr/local/bin", "/usr/local/sbin", "/opt", str(HOME / "bin"),
@@ -63,6 +64,13 @@ DOTFILE_NOISE = re.compile(
     r"|zcompdump.*|motd_shown|selected_editor|mysql_history|node_repl_history|rediscli_history"
     r"|fzf\.(bash|zsh)|bash_logout|zsh-update|shell\.pre-oh-my-zsh|Xauthority|ICEauthority)$"
 )
+
+# Home dotfiles deliberately kept out of Ansible
+DOTFILE_IGNORE = {
+    ".videolib.yml",  # github.com/pedbarbosa/videolib's own settings
+}
+
+FSTAB_REFERENCE = REPO / "ubuntu/reference/fstab"
 
 
 # ---------------------------------------------------------------- redaction
@@ -246,8 +254,9 @@ def module_args(task, *names):
 
 
 def managed_by_playbooks(base_ctx):
-    """Paths the ubuntu playbooks deploy, apt packages they install, cron job names."""
-    paths, packages, cron_names = set(RUN_SH_FILES), set(), set()
+    """Paths the ubuntu playbooks deploy, apt packages they install, cron job names,
+    and the users and groups they create or change."""
+    paths, packages, cron_names, accounts = set(RUN_SH_FILES), set(), set(), set()
     playbooks = [REPO / "ubuntu" / Path(e["import_playbook"]).name
                  for e in load_yaml(REPO / "ubuntu.yml") if "import_playbook" in e]
     for playbook in playbooks:
@@ -263,8 +272,8 @@ def managed_by_playbooks(base_ctx):
                 else:
                     loop_items = [USER] if "dotfile_users" in str(loop) else []
                 for item in loop_items:
-                    c = dict(ctx, **{var: render(item, ctx)}) if item is not None else ctx
                     try:
+                        c = dict(ctx, **{var: render(item, ctx)}) if item is not None else ctx
                         if (args := module_args(task, "copy", "template")) is not None and args.get("dest"):
                             dest = Path(os.path.expanduser(render(args["dest"], c)))
                             src = render(args.get("src") or "", c)
@@ -296,9 +305,11 @@ def managed_by_playbooks(base_ctx):
                                     packages.add(n.strip())
                         elif (args := module_args(task, "cron")) is not None:
                             cron_names.add(render(args["name"], c))
+                        elif (args := module_args(task, "user", "group")) is not None and args.get("name"):
+                            accounts.add(render(args["name"], c))
                     except (jinja2.exceptions.UndefinedError, KeyError):
                         continue
-    return paths, packages, cron_names
+    return paths, packages, cron_names, accounts
 
 
 # ---------------------------------------------------------------- report
@@ -402,22 +413,50 @@ def report_packages(playbook_packages):
         out(f"  snaps ({len(names)}): {', '.join(names) or 'none'}")
 
 
+def same_as_skel(path):
+    """True for an untouched copy of the installer's /etc/skel file (.bashrc, .profile)."""
+    skel = Path("/etc/skel") / path.name
+    try:
+        return skel.is_file() and skel.read_bytes() == path.read_bytes()
+    except OSError:
+        return False
+
+
 def report_home(managed):
     section("6. Dotfiles in ~ that no playbook deploys")
     items(str(p) for p in sorted(HOME.glob(".*"))
-          if p.is_file() and not DOTFILE_NOISE.match(p.name) and str(p) not in managed)
+          if p.is_file() and not DOTFILE_NOISE.match(p.name) and p.name not in DOTFILE_IGNORE
+          and str(p) not in managed and not same_as_skel(p))
 
 
-def report_system():
+def fstab_entries(text):
+    """(mount point, line) for each entry in an fstab."""
+    return [(l.split()[1], " ".join(l.split())) for l in (text or "").splitlines()
+            if l.strip() and not l.lstrip().startswith("#") and len(l.split()) >= 2]
+
+
+def report_system(ctx, accounts):
     section("7. Mounts, users and groups")
-    out("  /etc/fstab:")
-    items(" ".join(l.split()) for l in (read_file("/etc/fstab") or "").splitlines()
-          if l.strip() and not l.lstrip().startswith("#"))
-    out("  Local users (UID 1000 and up):")
-    items(f"{u.pw_name}  (uid {u.pw_uid}, shell {u.pw_shell})" for u in pwd.getpwall() if 1000 <= u.pw_uid < 60000)
-    out("  Local groups (GID 1000 and up):")
+    entries = fstab_entries(read_file("/etc/fstab"))
+    try:
+        reference = {m for m, _ in fstab_entries(JINJA.from_string(FSTAB_REFERENCE.read_text()).render(ctx))}
+    except (FileNotFoundError, jinja2.exceptions.TemplateError):
+        reference = None
+    if reference is None:
+        out(f"  /etc/fstab (couldn't render {FSTAB_REFERENCE.relative_to(REPO)} to compare):")
+        items(line for _, line in entries)
+    else:
+        out(f"  /etc/fstab mounts missing from {FSTAB_REFERENCE.relative_to(REPO)}:")
+        items(line for mount, line in entries if mount not in reference)
+        out(f"  {FSTAB_REFERENCE.relative_to(REPO)} mounts no longer in /etc/fstab:")
+        items(sorted(reference - {m for m, _ in entries}))
+    out("  Local users no playbook creates (UID 1000 and up):")
+    items(f"{u.pw_name}  (uid {u.pw_uid}, shell {u.pw_shell})" for u in pwd.getpwall()
+          if 1000 <= u.pw_uid < 60000 and u.pw_name not in accounts)
+    out("  Local groups no playbook creates (GID 1000 and up, besides users' own groups):")
+    users = {u.pw_name for u in pwd.getpwall()}
     items(f"{g.gr_name}  (gid {g.gr_gid}, members: {', '.join(g.gr_mem) or '-'})"
-          for g in grp.getgrall() if 1000 <= g.gr_gid < 60000)
+          for g in grp.getgrall() if 1000 <= g.gr_gid < 60000 and g.gr_name not in accounts | users)
 
 
 def main():
@@ -435,7 +474,7 @@ def main():
 
     base_ctx = dict(load_yaml(REPO / "ubuntu/group_vars/all.yml"), **secrets, home_dir=str(HOME),
                     ansible_facts={"user_id": USER, "env": {"HOME": str(HOME)}})
-    managed, playbook_packages, _ = managed_by_playbooks(base_ctx)
+    managed, playbook_packages, _, accounts = managed_by_playbooks(base_ctx)
     owned = package_owned_files()
 
     out(f"unmanaged-config: {len(managed)} paths managed by the ubuntu playbooks"
@@ -446,7 +485,7 @@ def main():
     report_unowned(owned, managed)
     report_packages(playbook_packages)
     report_home(managed)
-    report_system()
+    report_system(base_ctx, accounts)
 
 
 if __name__ == "__main__":
