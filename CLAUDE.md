@@ -404,6 +404,10 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
     from secrets), not on the shared iface. It's rendered just above
     `mobility_domain`, on roaming ifaces only. A radio without `nasid`
     leaves it unset, and hostapd then falls back to the radio's MAC address.
+    The template checks `'nasid' in radio`, not `radio.nasid is defined`.
+    Ansible treats a value that refers to a missing secret as undefined, so
+    `is defined` silently dropped `nasid` on an AP whose secret was missing.
+    Checking for the key makes that a template error instead.
     Each AP profile has its own `openwrt_wifi_<profile>_nasid` secret.
   - A host with no `openwrt_wifi_radios` stops at a `meta: end_host`, so the
     playbook never pushes a file with no radios (which would wipe its wifi).
