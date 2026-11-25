@@ -391,6 +391,15 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   - No restart handler: `wifi reload` is `ubus call network reload`, a full
     netifd reload that would also apply any `/etc/config/network` change
     `network.yml` staged in the same run. Run `wifi reload` by hand.
+- `openwrt/rc_local.yml` (`/etc/rc.local`, router only) carries
+  `ethtool -K eth0 rx-gro-list off`, the fix for the router's tx/rx queues
+  stalling on every core and on eth0/eth1. Turning off tso/gso/gro and
+  irqbalance didn't help, so they're left out (irqbalance stays off, since
+  `packet_steering '2'` in `network.router.conf` already spreads the load).
+  `ethtool` is in `openwrt_packages_router`. The file is static and
+  deployed with `copy`. On change, a handler runs it straight away with
+  `community.openwrt.command`, which a dry run skips. Keep everything in
+  `rc.local` safe to run twice for that reason.
 
 ## Gotchas learned the hard way
 
