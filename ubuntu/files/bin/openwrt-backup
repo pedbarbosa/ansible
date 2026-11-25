@@ -62,6 +62,22 @@ done
 
 log() { if [[ "$VERBOSE" == true ]]; then echo "$*"; fi }
 
+# "a", "a and b", "a, b and c"
+join_names() {
+    local out="" name i=0
+    for name in "$@"; do
+        i=$((i + 1))
+        if (( i == 1 )); then
+            out=$name
+        elif (( i == $# )); then
+            out+=" and $name"
+        else
+            out+=", $name"
+        fi
+    done
+    printf '%s' "$out"
+}
+
 # Load and validate settings
 [[ -r "$CONFIG_FILE" ]] || die "Config file '$CONFIG_FILE' not found, see the header of $0 for its format"
 # It's sourced, so refuse a file other users could change
@@ -135,7 +151,7 @@ fi
 
 # Report results
 if [[ ${#FAILURES[@]} -eq 0 ]]; then
-    MESSAGE="openwrt-backup: backed up ${BACKED_UP[*]} to $BACKUP_STORAGE"
+    MESSAGE="openwrt-backup: backed up $(join_names "${BACKED_UP[@]}") to $BACKUP_STORAGE"
     log "$MESSAGE"
     if [[ "$VERBOSE" == true ]] && ! printf '%s\n' "$MESSAGE" | "$SLACK_NOTIFY"; then
         echo "WARNING: Failed to send the Slack notification" >&2
