@@ -20,7 +20,12 @@ def main():
         print("Slack webhook is empty", file=sys.stderr)
         return 1
 
-    message = sys.stdin.read().strip()
+    # Take the message from the arguments when given, otherwise from stdin
+    # (snapraidd's notify_result pipes its report in with no arguments).
+    if len(sys.argv) > 1:
+        message = " ".join(sys.argv[1:]).strip()
+    else:
+        message = sys.stdin.read().strip()
 
     if not message:
         #print("No message supplied on stdin", file=sys.stderr)
