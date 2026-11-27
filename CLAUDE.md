@@ -514,6 +514,16 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   deployed with `copy`. On change, a handler runs it straight away with
   `community.openwrt.command`, which a dry run skips. Keep everything in
   `rc.local` safe to run twice for that reason.
+- snapraidd's `notify_result` (`ubuntu/files/snapraidd.conf`) is
+  `snapraidd-notify --narrow`, installed to `/usr/local/bin` by
+  `ubuntu/pms.yml`. snapraidd sends a report every time a SMART attribute's
+  normalised value changes, and Spin_Up_Time changes on every spin-up, so
+  with `spindown_idle_minutes` set it posted several times a day. The filter
+  drops a report only when it is nothing but `IGNORED` attribute changes on
+  a nominal array (no sync, scrub or error section), with the value at or
+  above `MIN_NORM`. Anything else goes to `slack-notify`, including reports
+  it can't parse and any it fails on. `--narrow` pins the layout it parses
+  (snapraidd strips the flag before running the command).
 - `ubuntu/tools/unmanaged-config` (not installed anywhere, run from the
   clone on the server) lists what was set up by hand and isn't in the
   ubuntu playbooks: hand-added crontab lines, systemd units and config files

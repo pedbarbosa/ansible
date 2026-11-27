@@ -90,6 +90,16 @@
         group: root
         mode: 0644
 
+    # snapraidd's notify_result: drops the reports that only say a disk's
+    # Spin_Up_Time changed, and passes the rest to slack-notify
+    - name: pms - install snapraidd-notify
+      copy:
+        src: files/snapraidd-notify
+        dest: /usr/local/bin/snapraidd-notify
+        owner: root
+        group: root
+        mode: 0755
+
     - name: pms - configure snapraidd.conf
       copy:
         src: files/snapraidd.conf
