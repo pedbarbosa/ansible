@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Pass snapraidd's reports on to slack-notify, except the noise.
+
+snapraidd sends a report whenever a SMART attribute's normalised value
+changes. Spin_Up_Time is measured again on every spin-up, so with disks that
+spin down when idle it changes several times a day and means nothing. A
+report is dropped only when it is nothing but that: the array is nominal,
+there's no sync, scrub or error section, and every changed attribute is in
+IGNORED with its value still well above the failure threshold. Anything else,
+including a report this script can't parse, goes to Slack as before.
+
+Reads the report on stdin (snapraidd's notify_result in snapraidd.conf, with
+--narrow so the layout stays the one parsed here). Dropped reports are still
+in syslog and the web UI.
+"""
+
+import re
+import subprocess
+import sys
+
+SLACK_NOTIFY = "/usr/local/bin/slack-notify"
+
+# Attributes whose changes are noise
+IGNORED = {"Spin_Up_Time"}
+
+# ...as long as the normalised value stays at or above this (the WD Reds'
+# Spin_Up_Time failure threshold is 21, and healthy values are around 180-230)
+MIN_NORM = 100
+
+
+def is_noise(report):
+    lines = [line.strip() for line in report.splitlines()]
+
+    if not any(re.fullmatch(r"HEALTH:\s+\[passed\]", line) for line in lines):
+        return False
+    if not any(re.fullmatch(r"STATUS:\s+All nominal", line) for line in lines):
+        return False
+    if "ATTRIBUTES CHANGES" not in lines:
+        return False
+
+    ignored_seen = False
+    for line in lines[lines.index("ATTRIBUTES CHANGES") + 1:]:
+        if not line or re.fullmatch(r"Disk \S+:", line):
+            continue
+        if line in IGNORED:
+            ignored_seen = True
+            continue
+        norm = re.fullmatch(r"norm \S+ to (\d+) \([+-]?\d+\)", line)
+        if norm:
+            if int(norm.group(1)) < MIN_NORM:
+                return False
+            continue
+        if re.fullmatch(r"worst \d+ thresh \d+", line):
+            continue
+        # Another attribute, a raw value change, a SYNC/SCRUB/ERRORS section,
+        # or a layout this script doesn't know: send it.
+        return False
+
+    return ignored_seen
+
+
+def main():
+    report = sys.stdin.read()
+
+    try:
+        noise = is_noise(report)
+    except Exception as exc:  # never lose a report to a bug in the filter
+        print(f"snapraidd-notify: filter failed, sending anyway: {exc}", file=sys.stderr)
+        noise = False
+
+    if noise:
+        return 0
+
+    return subprocess.run([SLACK_NOTIFY], input=report, text=True, check=False).returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main())
