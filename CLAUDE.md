@@ -183,8 +183,11 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   `systemd-journal` group, which the play adds. Without it journalctl
   succeeds with no kernel lines, so the script checks its stderr for the
   permissions hint (it doesn't pass `-q`, which hides that hint). Its
-  pattern leaves out a bare "SATA link down", which empty ports log at
-  every boot.
+  pattern leaves out two kinds of message that happen when nothing is
+  wrong: "timing out command, waited 7s", which the kernel logs on every
+  disk several times a day as spun-down disks wake (their Spin_Up_Time is
+  about 7 s), and a bare "SATA link down", which empty ports log at every
+  boot.
 
 ## Shared files across mac/ubuntu
 

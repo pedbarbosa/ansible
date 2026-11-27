@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Tell Slack about new disk errors in the kernel log: command timeouts, I/O and
-# medium errors, ATA link resets and ext4 errors. Each run reads only what was
+# Tell Slack about new disk errors in the kernel log: I/O and medium errors,
+# ATA exceptions and link resets, and ext4 errors. Each run reads only what was
 # logged since the previous one (a journal cursor), so every line is reported
 # once. Disks are named by model and serial too, because /dev/sdX names can
 # change between boots. Silent when there's nothing new, unless -v is given.
@@ -18,10 +18,14 @@ STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/disk-errors"
 CURSOR_FILE="$STATE_DIR/cursor"
 MAX_LINES=15
 
-# Kernel messages that mean a disk or its link misbehaved. Empty ports log
-# "SATA link down" at every boot, so that alone isn't matched: a real drop
-# also logs an exception and a link reset.
-PATTERN='timing out command|I/O error|Medium Error|Unrecovered read error|critical medium error|EXT4-fs error|ata[0-9.]+: (exception Emask|failed command|hard resetting link|COMRESET failed|limiting SATA link speed)|nvme[0-9]+: I/O [0-9]+.*timeout'
+# Kernel messages that mean a disk or its link misbehaved. Two kinds are left
+# out on purpose, because they happen when nothing is wrong:
+# - "timing out command, waited 7s": logged when a spun-down disk is woken (its
+#   Spin_Up_Time is about 7 s), several times a day on every disk. A disk that
+#   really hangs also logs an exception, a link reset or an I/O error.
+# - "SATA link down" alone: empty ports log it at every boot. A real drop also
+#   logs an exception and a link reset.
+PATTERN='I/O error|Medium Error|Unrecovered read error|critical medium error|EXT4-fs error|ata[0-9.]+: (exception Emask|failed command|hard resetting link|COMRESET failed|limiting SATA link speed)|nvme[0-9]+: I/O [0-9]+.*timeout'
 
 usage() {
     cat <<EOF
