@@ -75,7 +75,13 @@ trim() { sed 's/^[[:space:]]*//; s/[[:space:]]*$//'; }
 # "sdb: <model>, serial <serial>"
 describe_block() {
     local dev=$1 model serial
-    model=$(lsblk -dno MODEL "/dev/$dev" 2>/dev/null | trim)
+    # The kernel (and so lsblk) keeps only the first 16 characters of the
+    # model, e.g. "WDC WD60EFZX-68B". udev has the whole name, with
+    # underscores for spaces.
+    model=$(udevadm info --query=property --property=ID_MODEL --value "/dev/$dev" 2>/dev/null | tr '_' ' ' | trim)
+    if [[ -z "$model" ]]; then
+        model=$(lsblk -dno MODEL "/dev/$dev" 2>/dev/null | trim)
+    fi
     serial=$(lsblk -dno SERIAL "/dev/$dev" 2>/dev/null | trim)
     if [[ -z "$model" && -z "$serial" ]]; then
         echo "$dev"
