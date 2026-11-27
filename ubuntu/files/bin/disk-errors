@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+#
+# Tell Slack about new disk errors in the kernel log: command timeouts, I/O and
+# medium errors, ATA link resets and ext4 errors. Each run reads only what was
+# logged since the previous one (a journal cursor), so every line is reported
+# once. Disks are named by model and serial too, because /dev/sdX names can
+# change between boots. Silent when there's nothing new, unless -v is given.
+#
+# Needs to read the system journal: ubuntu/scripts.yml adds the login user to
+# the systemd-journal group.
+
+set -uo pipefail
+
+# Installed by the ansible ubuntu playbook; cron's PATH may not include /usr/local/bin
+SLACK_NOTIFY=$(command -v slack-notify || echo /usr/local/bin/slack-notify)
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/disk-errors"
+CURSOR_FILE="$STATE_DIR/cursor"
+MAX_LINES=15
+
+# Kernel messages that mean a disk or its link misbehaved. Empty ports log
+# "SATA link down" at every boot, so that alone isn't matched: a real drop
+# also logs an exception and a link reset.
+PATTERN='timing out command|I/O error|Medium Error|Unrecovered read error|critical medium error|EXT4-fs error|ata[0-9.]+: (exception Emask|failed command|hard resetting link|COMRESET failed|limiting SATA link speed)|nvme[0-9]+: I/O [0-9]+.*timeout'
+
+usage() {
+    cat <<EOF
+Usage: $0 [-v] [-n] [-h]
+  -v    Print progress, and always send a Slack summary (also when there are no new errors)
+  -n    Dry run: print the message instead of sending it, and don't move the cursor on
+  -h    Show this help and exit
+EOF
+}
+
+VERBOSE=false
+DRY_RUN=false
+while getopts "vnh" opt; do
+    case "$opt" in
+        v) VERBOSE=true ;;
+        n) DRY_RUN=true ;;
+        h) usage; exit 0 ;;
+        *) usage >&2; exit 1 ;;
+    esac
+done
+
+HOST=$(hostname -s)
+
+log() { if [[ "$VERBOSE" == true ]]; then echo "$*"; fi }
+
+# Returns non-zero when Slack wasn't told, so the cursor stays put and the
+# next run tries again.
+notify() {
+    if [[ "$DRY_RUN" == true ]]; then
+        printf -- '--- Slack message (not sent) ---\n%s\n' "$1"
+        return 0
+    fi
+    if ! printf '%s\n' "$1" | "$SLACK_NOTIFY"; then
+        echo "WARNING: Failed to send the Slack notification" >&2
+        return 1
+    fi
+}
+
+die() {
+    echo "ERROR: $*" >&2
+    notify "🚨 disk-errors failed on $HOST: $*"
+    exit 1
+}
+
+trim() { sed 's/^[[:space:]]*//; s/[[:space:]]*$//'; }
+
+# "sdb: <model>, serial <serial>"
+describe_block() {
+    local dev=$1 model serial
+    model=$(lsblk -dno MODEL "/dev/$dev" 2>/dev/null | trim)
+    serial=$(lsblk -dno SERIAL "/dev/$dev" 2>/dev/null | trim)
+    if [[ -z "$model" && -z "$serial" ]]; then
+        echo "$dev"
+    else
+        echo "$dev: ${model:-unknown model}, serial ${serial:-unknown}"
+    fi
+}
+
+# ATA ports (ata4) to the disk on them, through the sysfs device path
+ata_disk() {
+    local port=$1 link
+    for link in /sys/block/sd*; do
+        [[ -e "$link" ]] || continue
+        if [[ "$(readlink -f "$link")" == */"$port"/* ]]; then
+            basename "$link"
+            return
+        fi
+    done
+}
+
+describe() {
+    local name=$1 disk
+    case "$name" in
+        ata*)
+            disk=$(ata_disk "$name")
+            if [[ -n "$disk" ]]; then
+                echo "$name → $(describe_block "$disk")"
+            else
+                echo "$name (no disk found on this port)"
+            fi
+            ;;
+        nvme*) describe_block "${name}n1" ;;
+        *) describe_block "$name" ;;
+    esac
+}
+
+mkdir -p "$STATE_DIR" || die "can't create $STATE_DIR"
+WORK=$(mktemp -d) || die "can't create a temporary directory"
+trap 'rm -rf "$WORK"' EXIT
+
+# journalctl moves the cursor on in a copy, which replaces the real one only
+# once Slack has been told (and never in a dry run).
+JOURNAL_ARGS=(-k --no-pager -o short-iso --cursor-file="$WORK/cursor")
+if [[ -s "$CURSOR_FILE" ]]; then
+    cp "$CURSOR_FILE" "$WORK/cursor" || die "can't copy $CURSOR_FILE"
+    log "Reading the kernel log since the previous run..."
+else
+    # First run: start from this boot rather than the whole journal
+    JOURNAL_ARGS+=(-b)
+    log "No cursor yet: reading the kernel log since boot..."
+fi
+
+if ! OUTPUT=$(journalctl "${JOURNAL_ARGS[@]}" 2>"$WORK/stderr"); then
+    die "journalctl failed: $(head -c 500 "$WORK/stderr")"
+fi
+# Without access to the system journal, journalctl succeeds with no kernel lines
+if grep -qiE 'insufficient permissions|not seeing messages' "$WORK/stderr"; then
+    die "can't read the system journal (is $(id -un) in the systemd-journal group?)"
+fi
+
+save_cursor() {
+    [[ "$DRY_RUN" == true ]] && return
+    if [[ -s "$WORK/cursor" ]]; then
+        cp "$WORK/cursor" "$CURSOR_FILE" || die "can't save the cursor to $CURSOR_FILE"
+    fi
+}
+
+MATCHES=$(grep -E "$PATTERN" <<< "$OUTPUT")
+if [[ -z "$MATCHES" ]]; then
+    MESSAGE="disk-errors on $HOST: no new disk errors in the kernel log"
+    log "$MESSAGE"
+    if [[ "$VERBOSE" == true ]]; then
+        notify "$MESSAGE" || exit 1
+    fi
+    save_cursor
+    exit 0
+fi
+
+COUNT=$(wc -l <<< "$MATCHES")
+mapfile -t NAMES < <(grep -oE '\b(sd[a-z]+|ata[0-9]+|nvme[0-9]+)' <<< "$MATCHES" | sort -u)
+
+MESSAGE="🚨 Disk errors on $HOST: $COUNT new kernel message(s)"
+for name in "${NAMES[@]}"; do
+    MESSAGE+=$'\n'"• $(describe "$name")"
+done
+if (( COUNT > MAX_LINES )); then
+    MESSAGE+=$'\n'"The last $MAX_LINES:"
+fi
+MESSAGE+=$'\n''```'$'\n'"$(tail -n "$MAX_LINES" <<< "$MATCHES")"$'\n''```'
+
+echo "$MESSAGE" >&2
+notify "$MESSAGE" || exit 1
+save_cursor
+exit 1

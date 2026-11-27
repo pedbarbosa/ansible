@@ -41,6 +41,7 @@
         dest: "~/bin/{{ item | basename }}"
         mode: 0755
       loop:
+        - files/bin/disk-errors
         - files/bin/docker-update-all
         - files/bin/kodi-library-scan
         - files/bin/openwrt-backup
@@ -67,8 +68,19 @@
         # From the server-stack repo, which it reads its settings from
         - { name: update_certs, minute: "15", hour: "7", job: "~/git/server-stack/update_certs" }
         - { name: kodi-library-scan, minute: "0", hour: "9,17", job: "~/bin/kodi-library-scan" }
+        - { name: disk-errors, minute: "*/15", hour: "*", job: "~/bin/disk-errors" }
       loop_control:
         label: "{{ item.name }}"
+
+    # disk-errors reads the kernel log from the system journal. Cron sets each
+    # job's groups when it starts it, so the next run picks this up; a shell
+    # that was already open needs a new login.
+    - name: scripts - let the login user read the system journal
+      user:
+        name: "{{ main_user_account }}"
+        groups: systemd-journal
+        append: true
+      become: yes
 
     # openwrt-backup sources this file and refuses one others can write to
     - name: scripts - configure openwrt-backup

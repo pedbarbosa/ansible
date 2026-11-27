@@ -174,6 +174,17 @@ first and prints a reminder to re-run with `-v` to apply. Keep this
   `router`, same as `openwrt/inventory.yml`'s `openwrt_hostname`. The
   backup directory itself isn't created by Ansible: the script deliberately
   fails if it's missing, so an unmounted pool doesn't fill the root disk.
+- `disk-errors` (every 15 minutes) reads the kernel log through a journal
+  cursor in `~/.local/state/disk-errors/cursor`, so each line is reported
+  once. journalctl moves the cursor on in a temporary copy, which replaces
+  the real one only after Slack accepts the message, so a failed send is
+  retried on the next run. `-n` is a dry run that prints the message and
+  leaves the cursor alone. Reading the system journal needs the
+  `systemd-journal` group, which the play adds. Without it journalctl
+  succeeds with no kernel lines, so the script checks its stderr for the
+  permissions hint (it doesn't pass `-q`, which hides that hint). Its
+  pattern leaves out a bare "SATA link down", which empty ports log at
+  every boot.
 
 ## Shared files across mac/ubuntu
 
